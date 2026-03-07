@@ -1,0 +1,33 @@
+fastapi==0.109.0
+uvicorn==0.27.0
+
+# OCR & Document Processing
+paddlepaddle==2.6.2
+paddleocr==2.7.3
+python-multipart==0.0.6
+numpy==1.26.4
+opencv-python==4.6.0.66
+Pillow==10.2.0
+PyMuPDF==1.23.8 #
+
+#Core Utilities
+pydantic==2.5.3 # data validation, your schemas (request/response bodies) are built on it
+aiofiles==23.2.1 # async file reading/writing, needed so file I/O doesn't block FastAPI
+python-dotenv==1.0.0
+
+# Database
+sqlalchemy==2.0.25
+psycopg2-binary==2.9.9
+
+# Configuration  
+pydantic-settings==2.1.0
+
+# Authentication
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+
+# LLM Provider
+groq==0.4.1
+
+# WebSocket
+websockets==12.0

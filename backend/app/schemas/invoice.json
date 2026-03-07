@@ -1,0 +1,38 @@
+{
+  "invoice_type": "out_invoice",
+  "odoo_model": "account.move",
+  "vals": {
+    "move_type": "out_invoice",
+    "partner_id": 0,
+    "invoice_date": "YYYY-MM-DD",
+    "invoice_date_due": "YYYY-MM-DD",
+    "currency_id": 0,
+    "journal_id": 0,
+    "invoice_origin": "",
+    "ref": "",
+    "payment_reference": "",
+    "invoice_user_id": 0,
+    "invoice_payment_term_id": 0,
+    "narration": "",
+    "invoice_line_ids": [
+      [
+        0,
+        0,
+        {
+          "name": "",
+          "product_id": 0,
+          "quantity": 0.0,
+          "price_unit": 0.0,
+          "discount": 0.0,
+          "tax_ids": [
+            [
+              6,
+              0,
+              [0]
+            ]
+          ]
+        }
+      ]
+    ]
+  }
+}

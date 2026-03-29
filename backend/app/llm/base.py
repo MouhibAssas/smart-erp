@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
+from typing import List, Dict, Union
+
 
 class BaseLLMProvider(ABC):
     @abstractmethod
-    def generate(self, prompt: str) -> str:
+    async def generate(self, messages: Union[List[Dict[str, str]], str]) -> str:
         pass

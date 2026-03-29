@@ -22,3 +22,9 @@ export const uploadFile = async (file, message) => {
 
   return data;
 };
+
+// Confirm an extracted invoice payload (future backend route).
+export const confirmInvoice = async (payload) => {
+  const { data } = await httpClient.post("/invoice/confirm", payload);
+  return data;
+};

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import MessageBubble from "./MessageBubble";
-import { sendMessage, uploadFile } from "../../services/chatApi";
+import InvoiceValidationForm from "./InvoiceValidationForm";
+import { confirmInvoice, sendMessage, uploadFile } from "../../services/chatApi";
 import "./ChatBox.css";
 
 export default function ChatBox() {
@@ -13,6 +14,7 @@ export default function ChatBox() {
   ]);
   const [input, setInput] = useState("");
   const [selectedFile, setSelectedFile] = useState(null);
+  const [pendingInvoice, setPendingInvoice] = useState(null);
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -44,6 +46,10 @@ export default function ChatBox() {
 
       if (selectedFile) {
         const uploadResult = await uploadFile(selectedFile, payloadMessage);
+        // Store extracted invoice payload to open the validation form.
+        if (uploadResult?.extracted_data) {
+          setPendingInvoice(uploadResult.extracted_data);
+        }
         response = uploadResult?.response || "File processed.";
       } else {
         const history = getHistory();
@@ -98,20 +104,55 @@ export default function ChatBox() {
 
   return (
     <div className="chatbox-container">
-      {/* Messages */}
-      <div className="chatbox-messages">
-        {messages.map((msg) => (
-          <MessageBubble key={msg.id} text={msg.text} sender={msg.sender} />
-        ))}
+      <div className="chatbox-scroll-area">
+        {/* Messages */}
+        <div className="chatbox-messages">
+          {messages.map((msg) => (
+            <MessageBubble key={msg.id} text={msg.text} sender={msg.sender} />
+          ))}
 
-        {loading && (
-          <div className="chatbox-loading">
-            <div className="chatbox-loading-avatar">AI</div>
-            <div className="chatbox-loading-dots">
-              {[0, 1, 2].map((i) => (
-                <div key={i} className="chatbox-loading-dot" />
-              ))}
+          {loading && (
+            <div className="chatbox-loading">
+              <div className="chatbox-loading-avatar">AI</div>
+              <div className="chatbox-loading-dots">
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className="chatbox-loading-dot" />
+                ))}
+              </div>
             </div>
+          )}
+        </div>
+
+        {/* Render invoice validation below chat when upload produced extracted data. */}
+        {pendingInvoice && (
+          <div className="chatbox-invoice-validation">
+            <InvoiceValidationForm
+              extractedData={pendingInvoice}
+              onConfirm={async (payload) => {
+                setPendingInvoice(null);
+                try {
+                  await confirmInvoice(payload);
+                  setMessages((prev) => [
+                    ...prev,
+                    {
+                      id: Date.now() + 2,
+                      text: "Invoice confirmed and sent for processing.",
+                      sender: "bot",
+                    },
+                  ]);
+                } catch {
+                  setMessages((prev) => [
+                    ...prev,
+                    {
+                      id: Date.now() + 2,
+                      text: "Invoice confirmation endpoint is not ready yet.",
+                      sender: "bot",
+                    },
+                  ]);
+                }
+              }}
+              onCancel={() => setPendingInvoice(null)}
+            />
           </div>
         )}
         <div ref={bottomRef} />

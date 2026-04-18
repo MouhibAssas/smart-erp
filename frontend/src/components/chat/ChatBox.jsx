@@ -29,7 +29,7 @@ export default function ChatBox() {
       content: m.text,
     }));
 
-  const handleSend = async () => {
+      const handleSend = async () => {
     const text = input.trim();
     if ((!text && !selectedFile) || loading) return;
 
@@ -49,8 +49,10 @@ export default function ChatBox() {
         // Store extracted invoice payload to open the validation form.
         if (uploadResult?.extracted_data) {
           setPendingInvoice(uploadResult.extracted_data);
+          response = "✓ Invoice extracted successfully. Please review and confirm the details below.";
+        } else {
+          response = uploadResult?.response || "File processed. Please fill in the invoice details below.";
         }
-        response = uploadResult?.response || "File processed.";
       } else {
         const history = getHistory();
         response = await sendMessage(payloadMessage, history);
@@ -131,21 +133,30 @@ export default function ChatBox() {
               onConfirm={async (payload) => {
                 setPendingInvoice(null);
                 try {
-                  await confirmInvoice(payload);
+                  const result = await confirmInvoice(payload);
+                  if (result?.status !== "created") {
+                    throw new Error(
+                      result?.error ||
+                      result?.message ||
+                      result?.agent_response ||
+                      "Invoice creation failed."
+                    );
+                  }
                   setMessages((prev) => [
                     ...prev,
                     {
                       id: Date.now() + 2,
-                      text: "Invoice confirmed and sent for processing.",
+                      text: "Invoice confirmed and created successfully in Odoo.",
                       sender: "bot",
                     },
                   ]);
-                } catch {
+                } catch (err) {
+                  const msg = err?.message || "Invoice creation failed.";
                   setMessages((prev) => [
                     ...prev,
                     {
                       id: Date.now() + 2,
-                      text: "Invoice confirmation endpoint is not ready yet.",
+                      text: msg,
                       sender: "bot",
                     },
                   ]);

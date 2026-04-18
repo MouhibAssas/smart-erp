@@ -34,7 +34,23 @@ class OdooSessionClient(BaseERPClient):
     INVOICE_READ_FIELDS = [
         "id", "name", "move_type", "state",
         "invoice_date", "invoice_date_due",
-        "ref", "amount_total", "partner_id",
+        "ref", "amount_total", "amount_residual",
+        "payment_state", "partner_id",
+    ]
+
+    PARTNER_READ_FIELDS = [
+        "id", "name", "email", "phone",
+        "vat", "street", "city",
+        "country_id", "customer_rank", "supplier_rank",
+        "is_company", "company_type",
+    ]
+
+    EMPLOYEE_READ_FIELDS = [
+        "id", "name", "work_email", "mobile_phone",
+        "department_id", "job_id", "company_id",
+        "work_location_id", "resource_calendar_id",
+        "country_id", "marital", "birthday",
+        "identification_id", "phone",
     ]
 
     def __init__(
@@ -99,7 +115,24 @@ class OdooSessionClient(BaseERPClient):
 
         Returns the integer ID of the created record.
         """
-        result = self._call(model, "create", **vals)
+        result = self._call(model, "create", vals_list=[vals])
+        if isinstance(result, list) and len(result) == 1 and isinstance(result[0], int):
+            result = result[0]
+        if not isinstance(result, int):
+            raise OdooClientError(
+                f"Expected int from create, got: {type(result).__name__} = {result}"
+            )
+        return result
+
+    def create_partner(
+        self,
+        vals: Dict[str, Any],
+        model: str = "res.partner",
+    ) -> int:
+        """Creates one partner record and returns its integer ID."""
+        result = self._call(model, "create", vals_list=[vals])
+        if isinstance(result, list) and len(result) == 1 and isinstance(result[0], int):
+            result = result[0]
         if not isinstance(result, int):
             raise OdooClientError(
                 f"Expected int from create, got: {type(result).__name__} = {result}"
@@ -122,6 +155,22 @@ class OdooSessionClient(BaseERPClient):
             return records[0]
         raise OdooClientError(f"No invoice found with id {rid}")
 
+    def read_partner(
+        self,
+        record_id: Any,
+        model: str = "res.partner",
+    ) -> Dict[str, Any]:
+        """Reads one partner by Odoo ID."""
+        rid = self._coerce_id(record_id)
+        records = self._call(
+            model, "read",
+            ids=[rid],
+            fields=self.PARTNER_READ_FIELDS,
+        )
+        if isinstance(records, list) and records:
+            return records[0]
+        raise OdooClientError(f"No partner found with id {rid}")
+
     def update_invoice(
         self,
         record_id: Any,
@@ -132,6 +181,58 @@ class OdooSessionClient(BaseERPClient):
         result = self._call(model, "write", ids=[rid], **vals)
         return bool(result)
 
+    def create_employee(
+        self,
+        vals: Dict[str, Any],
+        model: str = "hr.employee",
+    ) -> int:
+        """Creates one employee record and returns its integer ID."""
+        result = self._call(model, "create", vals_list=[vals])
+        if isinstance(result, list) and len(result) == 1 and isinstance(result[0], int):
+            result = result[0]
+        if not isinstance(result, int):
+            raise OdooClientError(
+                f"Expected int from create, got: {type(result).__name__} = {result}"
+            )
+        return result
+
+    def read_employee(
+        self,
+        record_id: Any,
+        model: str = "hr.employee",
+    ) -> Dict[str, Any]:
+        """Reads one employee record by Odoo ID."""
+        rid = self._coerce_id(record_id)
+        records = self._call(
+            model, "read",
+            ids=[rid],
+            fields=self.EMPLOYEE_READ_FIELDS,
+        )
+        if isinstance(records, list) and records:
+            return records[0]
+        raise OdooClientError(f"No employee found with id {rid}")
+
+    def search_employees(
+        self,
+        filters: Dict[str, Any],
+        limit: int = 20,
+        model: str = "hr.employee",
+    ) -> List[Dict[str, Any]]:
+        """Search employees and return normalized dict records."""
+        domain = self._build_domain(filters)
+        records = self._call(
+            model,
+            "search_read",
+            domain=domain,
+            fields=self.EMPLOYEE_READ_FIELDS,
+            limit=limit,
+        )
+        if isinstance(records, list):
+            return [r for r in records if isinstance(r, dict)]
+        raise OdooClientError(
+            f"Unexpected employee search_read result: {type(records)}"
+        )
+
     def search_invoices(
         self,
         filters: Dict[str, Any],
@@ -139,16 +240,147 @@ class OdooSessionClient(BaseERPClient):
         model: str = "account.move",
     ) -> List[Dict[str, Any]]:
         domain = self._build_domain(filters)
+
+        if model == "res.partner":
+            fields = ["id", "name", "email", "phone"]
+        elif model == "account.account":
+            fields = ["id", "name", "code", "account_type"]
+        elif model == "account.tax":
+            fields = ["id", "name", "amount", "type_tax_use", "active"]
+        elif model == "account.payment.term":
+            fields = ["id", "name", "active"]
+        elif model == "product.product":
+            fields = ["id", "name"]
+        else:
+            fields = self.INVOICE_READ_FIELDS
+
         records = self._call(
             model, "search_read",
             domain=domain,
-            fields=self.INVOICE_READ_FIELDS,
+            fields=fields,
             limit=limit,
         )
         if isinstance(records, list):
             return [r for r in records if isinstance(r, dict)]
         raise OdooClientError(
             f"Unexpected search_read result: {type(records)}"
+        )
+
+    def search_partners(
+        self,
+        filters: Dict[str, Any],
+        limit: int = 20,
+        model: str = "res.partner",
+    ) -> List[Dict[str, Any]]:
+        """Search partners and return normalized dict records."""
+        domain = self._build_domain(filters)
+        records = self._call(
+            model,
+            "search_read",
+            domain=domain,
+            fields=self.PARTNER_READ_FIELDS,
+            limit=limit,
+        )
+        if isinstance(records, list):
+            return [r for r in records if isinstance(r, dict)]
+        raise OdooClientError(
+            f"Unexpected partner search_read result: {type(records)}"
+        )
+
+    def search_jobs(
+        self,
+        filters: Dict[str, Any],
+        limit: int = 20,
+        model: str = "hr.job",
+    ) -> List[Dict[str, Any]]:
+        """Search job positions and return normalized dict records."""
+        domain = self._build_domain(filters)
+        normalized_domain: List[Any] = []
+        for item in domain:
+            if (
+                isinstance(item, list)
+                and len(item) == 3
+                and item[0] == "name"
+                and item[1] in {"=", "like", "=like"}
+                and isinstance(item[2], str)
+            ):
+                normalized_domain.append(["name", "ilike", item[2]])
+            else:
+                normalized_domain.append(item)
+        records = self._call(
+            model,
+            "search_read",
+            domain=normalized_domain,
+            fields=["id", "name"],
+            limit=limit,
+        )
+        if isinstance(records, list):
+            return [r for r in records if isinstance(r, dict)]
+        raise OdooClientError(
+            f"Unexpected job search_read result: {type(records)}"
+        )
+
+    def search_departments(
+        self,
+        filters: Dict[str, Any],
+        limit: int = 20,
+        model: str = "hr.department",
+    ) -> List[Dict[str, Any]]:
+        """Search departments and return normalized dict records."""
+        domain = self._build_domain(filters)
+        records = self._call(
+            model,
+            "search_read",
+            domain=domain,
+            fields=["id", "name"],
+            limit=limit,
+        )
+        if isinstance(records, list):
+            return [r for r in records if isinstance(r, dict)]
+        raise OdooClientError(
+            f"Unexpected department search_read result: {type(records)}"
+        )
+
+    def search_companies(
+        self,
+        filters: Dict[str, Any],
+        limit: int = 20,
+        model: str = "res.company",
+    ) -> List[Dict[str, Any]]:
+        """Search companies and return normalized dict records."""
+        domain = self._build_domain(filters)
+        records = self._call(
+            model,
+            "search_read",
+            domain=domain,
+            fields=["id", "name"],
+            limit=limit,
+        )
+        if isinstance(records, list):
+            return [r for r in records if isinstance(r, dict)]
+        raise OdooClientError(
+            f"Unexpected company search_read result: {type(records)}"
+        )
+
+    def search_work_locations(
+        self,
+        filters: Dict[str, Any],
+        limit: int = 20,
+        model: str = "hr.work.location",
+    ) -> List[Dict[str, Any]]:
+        """Search work locations and return normalized dict records."""
+        domain = self._build_domain(filters)
+        records = self._call(
+            model,
+            "search_read",
+            domain=domain,
+            fields=["id", "name"],
+            limit=limit,
+        )
+        if isinstance(records, list):
+            return [r for r in records if isinstance(r, dict)]
+        raise OdooClientError(
+            f"Unexpected work location search_read result: {type(records)}"
         )
 
     def get_monthly_revenue(

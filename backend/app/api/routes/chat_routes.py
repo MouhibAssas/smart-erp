@@ -13,8 +13,13 @@ async def chat(request: Request, body: ChatRequest):
     try:
         service = ChatService(agent=request.app.state.agent)
         history = [m.model_dump() for m in body.history] if body.history else []
-        response = await service.handle_message(body.message, history)
-        return ChatResponse(response=response)
+        result = await service.handle_message(body.message, history, debug=body.debug)
+
+        if body.debug:
+            response, trace = result
+            return ChatResponse(response=response, debug=trace)
+
+        return ChatResponse(response=result)
     except Exception as e:
         logger.exception("Chat error: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -33,7 +38,7 @@ async def chat_upload(
         file_bytes = await file.read()
         filename = file.filename or "uploaded_file"
 
-        # Step 1 — extraction always runs first
+        # Step 1 — extraction always runs first (with graceful fallback)
         extracted_data = None
         enriched_message = message
 
@@ -44,28 +49,41 @@ async def chat_upload(
                     filename=filename,
                 )
                 extracted_data = canonical.model_dump()
-                # Force agent output format to strict JSON only (no human text, no markdown).
-                json_only_instruction = (
-                    "Return only valid JSON. "
-                    "Do not include explanations, greetings, markdown, or any extra text."
-                )
-                enriched_message = (
-                    f"{message}\n\n"
-                    f"[EXTRACTED INVOICE]\n"
-                    f"{canonical.model_dump_json(indent=2)}\n\n"
-                    # This block is what enforces JSON-only response after extraction.
-                    f"[OUTPUT_FORMAT]\n{json_only_instruction}"
-                )
                 logger.info(
-                    "Extraction complete — confidence: %s, missing: %s",
+                    "✓ Extraction complete — confidence: %s, missing: %s",
                     canonical.confidence_score,
                     canonical.missing_fields,
                 )
+                
+                # Even if confidence is low, return extracted data for user to validate
+                # Only add agent instruction if confidence is high
+                if canonical.confidence_score >= 0.7:
+                    json_only_instruction = (
+                        "Return only valid JSON. "
+                        "Do not include explanations, greetings, markdown, or any extra text."
+                    )
+                    enriched_message = (
+                        f"{message}\n\n"
+                        f"[EXTRACTED INVOICE]\n"
+                        f"{canonical.model_dump_json(indent=2)}\n\n"
+                        f"[OUTPUT_FORMAT]\n{json_only_instruction}"
+                    )
+                
             except Exception as exc:
-                logger.warning("Extraction failed, agent runs on plain message: %s", exc)
+                logger.warning("⚠ Extraction failed (user will see validation form): %s", exc)
+                # Don't fail the upload — return empty extracted_data so user gets validation form
+                extracted_data = None
 
-        # Step 2 — agent runs on enriched message
-        response = await service.handle_message(enriched_message, history=[])
+        # Step 2 — agent can run on enriched message if extraction was high-confidence
+        # Otherwise just return success and let UI show validation form
+        response = message
+        if enriched_message != message:
+            response = await service.handle_message(
+                enriched_message,
+                history=[],
+                debug=False,
+                enforce_tool_only=False,
+            )
 
         return ChatUploadResponse(response=response, extracted_data=extracted_data)
 

@@ -13,6 +13,8 @@ class MessageHistory(BaseModel):
 class ChatRequest(BaseModel):
     message: str
     history: Optional[List[MessageHistory]] = None
+    debug: bool = False
 
 class ChatResponse(BaseModel):
     response: str
+    debug: Optional[Dict[str, Any]] = None

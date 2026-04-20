@@ -36,3 +36,6 @@ websockets==15.0.1
 
 # MCP
 fastmcp==3.1.1
+
+# For password hashing in authentication
+bcrypt==4.1.2

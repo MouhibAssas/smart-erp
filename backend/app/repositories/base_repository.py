@@ -1,25 +1,25 @@
-from typing import Generic, TypeVar, Type
+from typing import Generic, TypeVar, Type, Optional, List
 from sqlalchemy.orm import Session
 
 T = TypeVar("T")
 
 class BaseRepository(Generic[T]):
-    def __init__(self, model: Type[T]):
+    def __init__(self, model: Type[T], db: Session):
         self.model = model
+        self.db = db
 
-    def get_by_id(self, db: Session, id: int):
-        return db.query(self.model).filter(self.model.id == id).first()
+    def get_by_id(self, id: int) -> Optional[T]:
+        return self.db.query(self.model).filter(self.model.id == id).first()
 
-    def get_all(self, db: Session):
-        return db.query(self.model).all()
+    def get_all(self, skip: int = 0, limit: int = 100) -> List[T]:
+        return self.db.query(self.model).offset(skip).limit(limit).all()
 
-    def create(self, db: Session, obj):
-        db.add(obj)
-        db.commit()
-        db.refresh(obj)
+    def save(self, obj: T) -> T:
+        self.db.add(obj)
+        self.db.commit()
+        self.db.refresh(obj)
         return obj
 
-    def delete(self, db: Session, id: int):
-        obj = self.get_by_id(db, id)
-        db.delete(obj)
-        db.commit()
+    def delete(self, obj: T) -> None:
+        self.db.delete(obj)
+        self.db.commit()

@@ -10,22 +10,7 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard-container">
-      {/* Sidebar */}
-      <div className="dashboard-sidebar">
-        <div className="dashboard-sidebar-logo">SMART ERP</div>
-
-        <div className="dashboard-sidebar-label">Navigation</div>
-
-        {["Chat", "Dashboard", "Invoices"].map((item) => (
-          <div
-            key={item}
-            className={`dashboard-nav-item ${item === "Dashboard" ? "active" : ""}`}
-          >
-            {item}
-          </div>
-        ))}
-      </div>
-
+  
       {/* Main Dashboard Content */}
       <div className="dashboard-main">
         <h1 className="dashboard-title">Dashboard</h1>

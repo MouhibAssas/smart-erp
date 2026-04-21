@@ -4,21 +4,6 @@ import "./Chat.css";
 export default function Chat() {
   return (
     <div className="chat-container">
-      {/* Sidebar */}
-      <div className="chat-sidebar">
-        <div className="chat-sidebar-logo">SMART ERP</div>
-
-        <div className="chat-sidebar-label">Navigation</div>
-
-        {["Chat", "Dashboard", "Invoices"].map((item) => (
-          <div
-            key={item}
-            className={`chat-nav-item ${item === "Chat" ? "active" : ""}`}
-          >
-            {item}
-          </div>
-        ))}
-      </div>
 
       {/* Main */}
       <div className="chat-main">

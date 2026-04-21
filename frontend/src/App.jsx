@@ -1,6 +1,8 @@
-import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Link, Navigate } from 'react-router-dom'
 import Chat from './pages/Chat.jsx'
+import AdminPanel from './pages/AdminPanel.jsx'
 import Dashboard from './pages/Dashboard'
+import Layout from './components/layout/Layout.jsx'
 import './App.css'
 
 function Home() {
@@ -39,9 +41,14 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/chat" element={<Chat />} />
-        <Route path="/dashboard" element={<Dashboard />} />
+        
+        <Route path="/" element={<Layout />}>
+        <Route index element={<Navigate to="/chat" replace />} />
+        <Route path="chat" element={<Chat />} />
+        <Route path="dashboard" element={<Dashboard />} />
+        <Route path="admin" element={<AdminPanel />} />
+        </Route>
+
       </Routes>
     </BrowserRouter>
   )

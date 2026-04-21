@@ -40,18 +40,26 @@ class UserService:
 
     def update_user(self, user_id: int, data: UserUpdate) -> User:
         user = self.get_user(user_id)
-        if data.full_name is not None:
+        changed = False
+
+        if data.full_name is not None and data.full_name != user.full_name:
             user.full_name = data.full_name
-        if data.email is not None:
+            changed = True
+        if data.email is not None and data.email != user.email:
             if self.repo.email_exists(data.email):
                 raise HTTPException(status_code=409, detail="Email already in use")
             user.email = data.email
-        if data.role is not None:
+            changed = True
+        if data.role is not None and data.role != user.role:
             user.role = data.role
-        if data.is_active is not None:
+            changed = True
+
+        if data.is_active is not None and data.is_active != user.is_active:
             user.is_active = data.is_active
-        self.repo.db.commit()
-        self.repo.db.refresh(user)
+            changed = True
+        if changed:
+            self.repo.db.commit()
+            self.repo.db.refresh(user)
         return user
 
     def delete_user(self, user_id: int) -> None:

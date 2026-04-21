@@ -7,7 +7,15 @@ from app.api.routes import chat_routes
 from app.api.routes import invoice_routes
 from app.services.extraction_service import ExtractionService
 from app.mcp_client.agent import Agent
+from app.api.routes import user_routes
 
+
+from app.database.base import Base
+from app.database.session import engine
+
+
+import app.models.user
+import app.models.invoice  
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +25,9 @@ async def lifespan(app: FastAPI):
     # Initialize shared services at startup.
     app.state.agent = Agent()
     logger.info("Agent initialized in app.state")
+
+    Base.metadata.create_all(bind=engine)
+    print("✓ Database tables created")
     
     try:
         app.state.extraction_service = ExtractionService()
@@ -41,6 +52,7 @@ app.add_middleware(
 
 app.include_router(chat_routes.router)
 app.include_router(invoice_routes.router)
+app.include_router(user_routes.router)
 
 @app.get("/health")
 async def health():

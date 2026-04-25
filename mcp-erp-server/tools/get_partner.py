@@ -22,12 +22,19 @@ async def get_partner(
         str | None,
         Field(description="Partner name to search case-insensitively (first match)."),
     ] = None,
+    max_results: Annotated[
+        int,
+        Field(description="Maximum number of partner matches to return when searching by name."),
+    ] = 10,
     ctx: Context = None,
 ) -> Dict[str, Any]:
     """Get an Odoo partner by ID or by name (case-insensitive)."""
 
     has_id = partner_id is not None
     has_name = bool(partner_name and str(partner_name).strip())
+
+    if max_results <= 0:
+        return {"ok": False, "error": "max_results must be greater than 0."}
 
     if not has_id and not has_name:
         return {
@@ -44,19 +51,21 @@ async def get_partner(
         if has_id:
             await ctx.info(f"Reading partner id={partner_id}")
             partner = client.read_partner(record_id=partner_id)
+            partners = [partner]
         else:
             name = str(partner_name).strip()
             await ctx.info(f"Searching partner by name: {name}")
             matches = client.search_partners(
                 filters={"domain": [["name", "ilike", name]]},
-                limit=1,
+                limit=max_results,
             )
             if not matches:
                 return {
                     "ok": False,
                     "error": f"No partner found with name '{name}'.",
                 }
-            partner = matches[0]
+            partners = matches
+            partner = partners[0]
 
         await ctx.info(f"Partner fetched — id {partner.get('id')}")
 
@@ -72,6 +81,8 @@ async def get_partner(
                 "customer_rank": partner.get("customer_rank"),
                 "supplier_rank": partner.get("supplier_rank"),
             },
+            "count": len(partners),
+            "partners": partners,
             "partner": partner,
             "data": partner,
         }

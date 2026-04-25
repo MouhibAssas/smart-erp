@@ -437,10 +437,20 @@ def _build_odoo_vals(
         ("ref",           "ref"),
         ("journal_id",    "journal_id"),
         ("currency_id",   "currency_id"),
+        ("narration",     "narration"),
     ]:
         value = raw.get(src)
         if value and value not in (None, "null", ""):
             vals[dst] = value
+
+    # Use canonical notes as fallback narration, but do not override explicit narration.
+    notes_value = raw.get("notes")
+    if (
+        notes_value
+        and notes_value not in (None, "null", "")
+        and not vals.get("narration")
+    ):
+        vals["narration"] = notes_value
 
     return vals
 
@@ -451,6 +461,7 @@ async def create_invoice(
             "JSON string representing an invoice. Accepts two shapes:\n\n"
             "CANONICAL shape (from OCR extraction):\n"
             "  move_type        : 'out_invoice' (customer) or 'in_invoice' (vendor)\n"
+            "  partner_id       : integer Odoo partner ID (required for confirmation flow)\n"
             "  vendor           : {name, address, tax_id}  — who issued the invoice\n"
             "  buyer            : {name, address}           — who receives it\n"
             "  lines            : [{description, quantity, unit_price}]\n"
@@ -461,8 +472,8 @@ async def create_invoice(
             "  move_type        : 'out_invoice' or 'in_invoice'\n"
             "  partner_id       : integer Odoo partner ID\n"
             "  invoice_line_ids : [[0,0,{name,quantity,price_unit,account_id}]]\n\n"
-            "The tool resolves partner names to Odoo IDs automatically.\n"
             "Example canonical: {\"move_type\":\"out_invoice\","
+            "\"partner_id\":42,"
             "\"buyer\":{\"name\":\"ACME\"},"
             "\"lines\":[{\"description\":\"Consulting\",\"quantity\":1,\"unit_price\":500}]}"
         )
@@ -497,32 +508,18 @@ async def create_invoice(
     try:
         await ctx.info(f"Creating {move_type} invoice")
 
-        # ── Step 4: resolve partner_id ────────────────────────────────
-        # Accept direct partner_id OR resolve from name
-        if raw.get("partner_id") and isinstance(raw["partner_id"], int):
-            partner_id = raw["partner_id"]
-            await ctx.info(f"Using provided partner_id={partner_id}")
-        else:
-            # For out_invoice: buyer is the partner
-            # For in_invoice:  vendor is the partner
-            if move_type == "out_invoice":
-                partner_name = (raw.get("buyer") or {}).get("name")
-            else:
-                partner_name = (raw.get("vendor") or {}).get("name")
+        # ── Step 4: require partner_id from explicit partner selection ─────────
+        partner_id = raw.get("partner_id")
+        if not isinstance(partner_id, int) or partner_id <= 0:
+            return {
+                "ok": False,
+                "error": (
+                    "partner_id is required from partner selection. "
+                    "Name-based partner resolution is disabled for this flow."
+                ),
+            }
 
-            if not partner_name:
-                return {
-                    "ok": False,
-                    "error": (
-                        "Cannot resolve partner: "
-                        f"{'buyer' if move_type == 'out_invoice' else 'vendor'}.name is missing. "
-                        "Provide either partner_id (integer) or buyer/vendor with a name."
-                    ),
-                }
-
-            await ctx.info(f"Resolving partner name: {partner_name}")
-            partner_id = _resolve_partner_id(client, partner_name)
-            await ctx.info(f"Resolved partner '{partner_name}' → id={partner_id}")
+        await ctx.info(f"Using provided partner_id={partner_id}")
 
         # ── Step 5: resolve default account for lines ─────────────────
         # Only needed if lines don't already have account_id

@@ -28,3 +28,10 @@ export const confirmInvoice = async (payload) => {
   const { data } = await httpClient.post("/invoice/confirm", payload);
   return data;
 };
+
+export const searchPartners = async ({ name, role = "any", limit = 8 }) => {
+  const { data } = await httpClient.get("/invoice/partners/search", {
+    params: { name, role, limit },
+  });
+  return data;
+};

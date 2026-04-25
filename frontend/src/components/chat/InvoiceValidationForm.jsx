@@ -1,5 +1,6 @@
 import { useState } from "react";
 import "./InvoiceValidationForm.css";
+import { searchPartners } from "../../services/chatApi";
 
 const INVOICE_TYPES = [
   { value: "out_invoice", label: "Customer Invoice", desc: "You issue - money owed to you" },
@@ -55,6 +56,21 @@ const pickFirstMeaningful = (...values) => {
   return "";
 };
 
+const formatPartnerAddress = (partner = {}) => {
+  const street = normalizeNullableText(partner.street);
+  const city = normalizeNullableText(partner.city);
+  return [street, city].filter(Boolean).join(", ");
+};
+
+const createLookupEntry = (query = "") => ({
+  query: normalizeNullableText(query),
+  loading: false,
+  error: "",
+  hasSearched: false,
+  selectedId: null,
+  candidates: [],
+});
+
 function Field({ label, children, hint, missing, className = "" }) {
   return (
     <div className={`ivf-field ${className}`.trim()}>
@@ -68,7 +84,7 @@ function Field({ label, children, hint, missing, className = "" }) {
   );
 }
 
-function Input({ value, onChange, type = "text", placeholder, className = "" }) {
+function Input({ value, onChange, type = "text", placeholder, className = "", readOnly = false }) {
   return (
     <input
       type={type}
@@ -76,6 +92,8 @@ function Input({ value, onChange, type = "text", placeholder, className = "" }) 
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       className={`ivf-input ${className}`.trim()}
+      readOnly={readOnly}
+      aria-readonly={readOnly}
     />
   );
 }
@@ -104,22 +122,46 @@ function SectionCard({ title, icon, children, accent }) {
   );
 }
 
-function PartyFields({ data, onChange, missingFields, prefix }) {
+function PartyFields({ data, onChange, missingFields, prefix, readOnly = false }) {
   const missing = (field) => missingFields.includes(`${prefix}.${field}`);
   return (
     <div className="ivf-two-col-grid">
       <Field label="Name" missing={missing("name")}>
-        <Input value={data.name} onChange={(v) => onChange({ ...data, name: v })} placeholder="Company or person name" />
+        <Input
+          value={data.name}
+          onChange={(v) => onChange({ ...data, name: v })}
+          placeholder="Company or person name"
+          readOnly={readOnly}
+          className={readOnly ? "ivf-readonly-input" : ""}
+        />
       </Field>
       <Field label="Tax ID / MF" missing={missing("tax_id")}>
-        <Input value={data.tax_id} onChange={(v) => onChange({ ...data, tax_id: v })} placeholder="e.g. 1234567/A/M/000" />
+        <Input
+          value={data.tax_id}
+          onChange={(v) => onChange({ ...data, tax_id: v })}
+          placeholder="e.g. 1234567/A/M/000"
+          readOnly={readOnly}
+          className={readOnly ? "ivf-readonly-input" : ""}
+        />
       </Field>
       <Field label="Address" missing={missing("address")} className="ivf-span-2">
-        <Input value={data.address} onChange={(v) => onChange({ ...data, address: v })} placeholder="Street, city, postal code" />
+        <Input
+          value={data.address}
+          onChange={(v) => onChange({ ...data, address: v })}
+          placeholder="Street, city, postal code"
+          readOnly={readOnly}
+          className={readOnly ? "ivf-readonly-input" : ""}
+        />
       </Field>
       {prefix === "vendor" && (
         <Field label="IBAN" missing={missing("iban")}>
-          <Input value={data.iban} onChange={(v) => onChange({ ...data, iban: v })} placeholder="Bank account number" />
+          <Input
+            value={data.iban}
+            onChange={(v) => onChange({ ...data, iban: v })}
+            placeholder="Bank account number"
+            readOnly={readOnly}
+            className={readOnly ? "ivf-readonly-input" : ""}
+          />
         </Field>
       )}
     </div>
@@ -224,35 +266,16 @@ export default function InvoiceValidationForm({ extractedData, onConfirm, onCanc
 
   const [invoiceType, setInvoiceType] = useState(extractedData?.invoice_type || extractedData?.move_type || "out_invoice");
 
-  const syncPartnerFields = (current, source, sourceKey) => {
-    const sourceSafe = source || {};
-    const counterpart = sourceKey === "buyer" ? current.vendor : current.buyer;
+  const [partnerSearch, setPartnerSearch] = useState(() => {
+    const buyerName = normalizeNullableText(extractedData?.buyer?.name);
+    const vendorName = normalizeNullableText(extractedData?.vendor?.name);
 
-    const shared = {
-      name: pickFirstMeaningful(sourceSafe.name, counterpart?.name, current.buyer?.name, current.vendor?.name),
-      address: pickFirstMeaningful(sourceSafe.address, counterpart?.address, current.buyer?.address, current.vendor?.address),
-      tax_id: pickFirstMeaningful(sourceSafe.tax_id, counterpart?.tax_id, current.buyer?.tax_id, current.vendor?.tax_id),
-    };
+    if (invoiceType === "out_invoice") {
+      return pickFirstMeaningful(buyerName, vendorName);
+    }
 
-    return {
-      ...current,
-      [sourceKey]: {
-        ...current[sourceKey],
-        ...sourceSafe,
-        name: shared.name,
-        address: shared.address,
-        tax_id: shared.tax_id,
-      },
-      buyer: {
-        ...current.buyer,
-        ...shared,
-      },
-      vendor: {
-        ...current.vendor,
-        ...shared,
-      },
-    };
-  };
+    return pickFirstMeaningful(vendorName, buyerName);
+  });
 
   const [data, setData] = useState(() => {
     if (!extractedData) return defaults;
@@ -275,7 +298,6 @@ export default function InvoiceValidationForm({ extractedData, onConfirm, onCanc
       ...extractedData,
       vendor: {
         ...defaults.vendor,
-        ...sharedPartner,
         ...extractedVendor,
         name: pickFirstMeaningful(extractedVendor.name, sharedPartner.name),
         address: pickFirstMeaningful(extractedVendor.address, sharedPartner.address),
@@ -284,7 +306,6 @@ export default function InvoiceValidationForm({ extractedData, onConfirm, onCanc
       },
       buyer: {
         ...defaults.buyer,
-        ...sharedPartner,
         ...extractedBuyer,
         name: pickFirstMeaningful(extractedBuyer.name, sharedPartner.name),
         address: pickFirstMeaningful(extractedBuyer.address, sharedPartner.address),
@@ -295,7 +316,120 @@ export default function InvoiceValidationForm({ extractedData, onConfirm, onCanc
     };
   });
 
+  const [partnerLookup, setPartnerLookup] = useState(() => ({
+    buyer: createLookupEntry(extractedData?.buyer?.name),
+    vendor: createLookupEntry(extractedData?.vendor?.name),
+  }));
+
   const missing = data.missing_fields || [];
+
+  const activePartnerKey = invoiceType === "out_invoice" ? "buyer" : "vendor";
+  const hasSelectedPartner = Boolean(partnerLookup[activePartnerKey]?.selectedId);
+
+  const applyPartnerCandidate = (role, partner) => {
+    const normalizedPartner = partner || {};
+    const mappedAddress = formatPartnerAddress(normalizedPartner);
+
+    setData((current) => {
+      const next = {
+        ...current,
+        [role]: {
+          ...current[role],
+          name: pickFirstMeaningful(normalizedPartner.name, current[role]?.name),
+          tax_id: pickFirstMeaningful(normalizedPartner.vat, current[role]?.tax_id),
+          address: pickFirstMeaningful(mappedAddress, current[role]?.address),
+          iban: role === "vendor"
+            ? pickFirstMeaningful(normalizeNullableText(normalizedPartner.iban), current.vendor?.iban)
+            : current.buyer?.iban,
+        },
+      };
+      return next;
+    });
+  };
+
+  const runPartnerSearch = async (role, forcedName = null) => {
+    const query = normalizeNullableText(forcedName ?? partnerSearch);
+    if (!query) {
+      setPartnerLookup((prev) => ({
+        ...prev,
+        [role]: { ...prev[role], candidates: [], error: "Enter a name to search.", hasSearched: true, loading: false },
+      }));
+      return;
+    }
+
+    setPartnerLookup((prev) => ({
+      ...prev,
+      [role]: {
+        ...prev[role],
+        query,
+        loading: true,
+        error: "",
+      },
+    }));
+
+    try {
+      const response = await searchPartners({
+        name: query,
+        role: role === "buyer" ? "customer" : "vendor",
+        limit: 8,
+      });
+
+      const candidates = Array.isArray(response?.partners) ? response.partners : [];
+      setPartnerLookup((prev) => {
+        const hasSelected = prev[role].selectedId && candidates.some((p) => p.id === prev[role].selectedId);
+        return {
+          ...prev,
+          [role]: {
+            ...prev[role],
+            loading: false,
+            hasSearched: true,
+            candidates,
+            error: response?.ok ? "" : (response?.error || "Search failed."),
+            selectedId: hasSelected ? prev[role].selectedId : null,
+          },
+        };
+      });
+    } catch {
+      setPartnerLookup((prev) => ({
+        ...prev,
+        [role]: {
+          ...prev[role],
+          loading: false,
+          hasSearched: true,
+          candidates: [],
+          error: "Unable to fetch partner candidates.",
+          selectedId: null,
+        },
+      }));
+    }
+  };
+
+  const selectPartnerCandidate = (role, partnerId) => {
+    const lookup = partnerLookup[role];
+    const selected = lookup.candidates.find((p) => String(p.id) === String(partnerId));
+
+    setPartnerLookup((prev) => ({
+      ...prev,
+      [role]: {
+        ...prev[role],
+        selectedId: selected ? selected.id : null,
+      },
+    }));
+
+    if (selected) {
+      setPartnerSearch(normalizeNullableText(selected.name) || partnerSearch);
+      applyPartnerCandidate(role, selected);
+      return;
+    }
+
+    setData((current) => ({
+      ...current,
+      [role]: role === "vendor"
+        ? { name: "", address: "", tax_id: "", iban: "" }
+        : { name: "", address: "", tax_id: "" },
+    }));
+
+  };
 
   const recalcTotals = (lines) => {
     const normalizedLines = lines.map((l) => {
@@ -354,9 +488,11 @@ export default function InvoiceValidationForm({ extractedData, onConfirm, onCanc
   };
 
   const handleConfirm = () => {
+    const selectedPartnerId = partnerLookup[activePartnerKey]?.selectedId || null;
     const payload = {
       ...data,
       invoice_type: invoiceType,
+      partner_id: selectedPartnerId,
       totals: recalcTotals(data.lines),
     };
     if (onConfirm) onConfirm(payload);
@@ -375,6 +511,9 @@ export default function InvoiceValidationForm({ extractedData, onConfirm, onCanc
       </div>
 
       <SectionCard title="Invoice type" icon="<->" accent="blue">
+        <p className="ivf-type-context">
+          Select the invoice direction first. The partner section below will adapt to the active role.
+        </p>
         <div className="ivf-type-grid">
           {INVOICE_TYPES.map((t) => {
             const isSelected = invoiceType === t.value;
@@ -383,7 +522,9 @@ export default function InvoiceValidationForm({ extractedData, onConfirm, onCanc
             return (
               <button
                 key={t.value}
-                onClick={() => setInvoiceType(t.value)}
+                onClick={() => {
+                  setInvoiceType(t.value);
+                }}
                 type="button"
                 className={`ivf-type-card ${kindClass} ${isSelected ? "is-selected" : ""}`.trim()}
               >
@@ -397,6 +538,107 @@ export default function InvoiceValidationForm({ extractedData, onConfirm, onCanc
             );
           })}
         </div>
+      </SectionCard>
+
+      <SectionCard title="Partner matching" icon="id" accent="teal">
+        <p className="ivf-partner-context">
+          Showing only the active role for this invoice: {activePartnerKey === "buyer" ? "Customer (buyer)" : "Vendor (supplier)"}.
+        </p>
+
+        {(() => {
+          const cfg = activePartnerKey === "buyer"
+            ? { role: "buyer", title: "Customer (buyer)", note: "Used for customer invoices" }
+            : { role: "vendor", title: "Vendor (supplier)", note: "Used for vendor bills" };
+          const lookup = partnerLookup[cfg.role];
+          const selected = lookup.candidates.find((p) => p.id === lookup.selectedId);
+          const roleData = data[cfg.role];
+
+          return (
+            <div className="ivf-partner-card is-active ivf-partner-card-single">
+              <div className="ivf-partner-card-head">
+                <div>
+                  <p className="ivf-partner-title">{cfg.title}</p>
+                  <p className="ivf-partner-note">{cfg.note}</p>
+                </div>
+                <span className="ivf-partner-active-tag">active</span>
+              </div>
+
+              <div className="ivf-partner-search-row">
+                <Input
+                  value={partnerSearch}
+                  onChange={(v) => {
+                    setPartnerSearch(v);
+                    setPartnerLookup((prev) => ({
+                      ...prev,
+                      [cfg.role]: { ...prev[cfg.role], query: v, error: "" },
+                    }));
+                  }}
+                  placeholder="Search by extracted or manual name"
+                />
+                <button
+                  type="button"
+                  className="ivf-search-btn"
+                  onClick={() => runPartnerSearch(cfg.role, partnerSearch)}
+                  disabled={lookup.loading}
+                >
+                  {lookup.loading ? "Searching..." : "Search"}
+                </button>
+              </div>
+
+              <div className="ivf-field">
+                <label className="ivf-field-label">Matching partners</label>
+                <select
+                  className="ivf-select"
+                  value={lookup.selectedId ?? ""}
+                  onChange={(e) => selectPartnerCandidate(cfg.role, e.target.value)}
+                >
+                  <option value="">Select the correct partner</option>
+                  {lookup.candidates.map((candidate) => {
+                    const vat = normalizeNullableText(candidate.vat);
+                    const suffix = vat ? ` - ${vat}` : "";
+                    const companyFlag = candidate.is_company ? "Company" : "Person";
+                    return (
+                      <option key={candidate.id} value={candidate.id}>
+                        {candidate.name} ({companyFlag} #{candidate.id}){suffix}
+                      </option>
+                    );
+                  })}
+                </select>
+                {lookup.error && <p className="ivf-partner-error">{lookup.error}</p>}
+                {!lookup.error && lookup.hasSearched && lookup.candidates.length === 0 && (
+                  <p className="ivf-partner-empty">No matches found. Try a shorter or partial name.</p>
+                )}
+                {!hasSelectedPartner && (
+                  <p className="ivf-partner-required">
+                    Select one partner from the list to continue. Manual partner typing is disabled to avoid mismatches.
+                  </p>
+                )}
+              </div>
+
+              {selected && (
+                <div className="ivf-partner-meta">
+                  <div><strong>Name:</strong> {selected.name || "-"}</div>
+                  <div><strong>Tax ID:</strong> {normalizeNullableText(selected.vat) || "-"}</div>
+                  <div><strong>Address:</strong> {formatPartnerAddress(selected) || "-"}</div>
+                  <div><strong>IBAN:</strong> {normalizeNullableText(selected.iban) || "-"}</div>
+                </div>
+              )}
+
+              <PartyFields
+                data={roleData}
+                onChange={(nextRoleData) =>
+                  setData((d) => ({
+                    ...d,
+                    [cfg.role]: nextRoleData,
+                  }))
+                }
+                missingFields={missing}
+                prefix={cfg.role}
+                readOnly={true}
+              />
+            </div>
+          );
+        })()}
       </SectionCard>
 
       <SectionCard title="Invoice details" icon="[]" accent="gray">
@@ -428,28 +670,6 @@ export default function InvoiceValidationForm({ extractedData, onConfirm, onCanc
           </Field>
         </div>
       </SectionCard>
-
-      {invoiceType === "out_invoice" && (
-        <SectionCard title="Customer (buyer)" icon="down" accent="teal">
-          <PartyFields
-            data={data.buyer}
-            onChange={(buyer) => setData((d) => syncPartnerFields(d, buyer, "buyer"))}
-            missingFields={missing}
-            prefix="buyer"
-          />
-        </SectionCard>
-      )}
-
-      {invoiceType === "in_invoice" && (
-        <SectionCard title="Vendor (supplier)" icon="up" accent="teal">
-          <PartyFields
-            data={data.vendor}
-            onChange={(vendor) => setData((d) => syncPartnerFields(d, vendor, "vendor"))}
-            missingFields={missing}
-            prefix="vendor"
-          />
-        </SectionCard>
-      )}
 
       <SectionCard title="Line items" icon="==" accent="gray">
         <div className="ivf-line-grid ivf-line-headings">
@@ -555,7 +775,13 @@ export default function InvoiceValidationForm({ extractedData, onConfirm, onCanc
         <button onClick={onCancel} className="ivf-btn ivf-btn-secondary" type="button">
           Cancel
         </button>
-        <button onClick={handleConfirm} className="ivf-btn ivf-btn-primary" type="button">
+        <button
+          onClick={handleConfirm}
+          className="ivf-btn ivf-btn-primary"
+          type="button"
+          disabled={!hasSelectedPartner}
+          title={!hasSelectedPartner ? "Select a partner from search results first" : undefined}
+        >
           Confirm and Send to Odoo
         </button>
       </div>

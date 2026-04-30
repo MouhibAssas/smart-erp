@@ -30,6 +30,14 @@ async def get_partner(
 ) -> Dict[str, Any]:
     """Get an Odoo partner by ID or by name (case-insensitive)."""
 
+    def _format_partner_line(partner: Dict[str, Any]) -> str:
+        parts = [f"ID: {partner.get('id')}", f"Name: {partner.get('name') or '-'}"]
+        if partner.get("email"):
+            parts.append(f"Email: {partner.get('email')}")
+        if partner.get("phone"):
+            parts.append(f"Phone: {partner.get('phone')}")
+        return " | ".join(parts)
+
     has_id = partner_id is not None
     has_name = bool(partner_name and str(partner_name).strip())
 
@@ -67,11 +75,24 @@ async def get_partner(
             partners = matches
             partner = partners[0]
 
-        await ctx.info(f"Partner fetched — id {partner.get('id')}")
+        if has_name:
+            partner_ids = [p.get("id") for p in partners]
+            await ctx.info(f"Found {len(partners)} partner(s) with IDs: {partner_ids}")
+        else:
+            await ctx.info(f"Partner fetched — id {partner.get('id')}")
+
+        if has_name:
+            response_lines = [f"Found {len(partners)} partner(s) matching '{name}':"]
+            for item in partners:
+                response_lines.append(f"- {_format_partner_line(item)}")
+            response_text = "\n".join(response_lines)
+        else:
+            response_text = f"Partner found: {_format_partner_line(partner)}"
 
         return {
             "ok": True,
             "message": "Partner data fetched successfully",
+            "response": response_text,
             "summary": {
                 "id": partner.get("id"),
                 "name": partner.get("name"),

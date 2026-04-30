@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import chat_routes
 from app.api.routes import invoice_routes
+from app.api.routes import dashboard_routes
 from app.services.extraction_service import ExtractionService
 from app.mcp_client.agent import Agent
 from app.api.routes import user_routes
@@ -52,6 +53,7 @@ app.add_middleware(
 
 app.include_router(chat_routes.router)
 app.include_router(invoice_routes.router)
+app.include_router(dashboard_routes.router)
 app.include_router(user_routes.router)
 
 @app.get("/health")

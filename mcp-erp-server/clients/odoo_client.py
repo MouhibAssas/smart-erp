@@ -266,6 +266,24 @@ class OdooSessionClient(BaseERPClient):
             f"Unexpected search_read result: {type(records)}"
         )
 
+    def count_invoices(
+        self,
+        filters: Dict[str, Any],
+        model: str = "account.move",
+    ) -> int:
+        """Count invoices matching filters using Odoo search_count."""
+        domain = self._build_domain(filters)
+        result = self._call(
+            model,
+            "search_count",
+            domain=domain,
+        )
+        if isinstance(result, int):
+            return result
+        raise OdooClientError(
+            f"Unexpected search_count result: {type(result)}"
+        )
+
     def search_partners(
         self,
         filters: Dict[str, Any],

@@ -39,6 +39,8 @@ from tools.get_partner import get_partner
 from tools.create_employee import create_employee
 from tools.get_employee import get_employee
 from tools.get_unpaid_invoices import get_unpaid_invoices
+from tools.search_invoices_advanced import search_invoices_advanced
+from tools.get_revenue import get_revenue
 # from tools.update_invoice import update_invoice
 
 mcp.add_tool(create_invoice)
@@ -48,6 +50,8 @@ mcp.add_tool(get_partner)
 mcp.add_tool(create_employee)
 mcp.add_tool(get_employee)
 mcp.add_tool(get_unpaid_invoices)
+mcp.add_tool(search_invoices_advanced)
+mcp.add_tool(get_revenue)
 # mcp.add_tool(update_invoice)
 
 if __name__ == "__main__":

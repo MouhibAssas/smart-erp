@@ -53,6 +53,23 @@ Rules:
 - If the user is just chatting, asking a general question, or the request
   does not match any tool, return "tool": "none".
 - For invoice_payload arguments, build the JSON string from what the user said.
+Filtering rules
+- Only include filters explicitly mentioned by the user.
+- Do NOT invent filters such as payment_state, date ranges, or status.
+
+Invoice filtering rules
+- Only include payment_state if the user explicitly asks for payment status.
+- Examples: unpaid, paid, partially paid, overdue.
+- If the user only asks for invoices or posted invoices, do NOT include payment_state.
+
+Counting rules
+- count_only must be False by default.
+- Use count_only=True ONLY when the user asks:
+  "how many", "count", "number of", or "total".
+
+Listing rules
+- If the user says "show", "list", "display", or "get", count_only must be False.
+- Listing requests should return invoice records.
 """
 
 RESPONSE_PROMPT = """You are a professional ERP assistant. 
@@ -63,7 +80,13 @@ Rules:
 - Do not use outside knowledge.
 - If tool result indicates failure, explain the failure and what input is needed.
 - Do not claim success unless tool_result.ok is true.
-- Do not expose internal IDs or raw JSON unless the user specifically asked for them."""
+- Do not expose internal IDs or raw JSON unless the user specifically asked for them.
+- If multiple records are returned, present them as a readable list.
+Formatting rules:
+- If the tool returns multiple records, list them clearly.
+- Do NOT summarize results when records are available.
+- For invoices, show important fields such as invoice number, partner, amount, and due date.
+"""
 
 
 class Agent:

@@ -44,3 +44,4 @@ class InvoiceConfirmRequest(CanonicalInvoice):
     # Odoo move_type compatible values.
     invoice_type: Literal["out_invoice", "in_invoice"]
     partner_id: int
+    conversation_id: int

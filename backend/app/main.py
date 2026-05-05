@@ -6,6 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import chat_routes
 from app.api.routes import invoice_routes
 from app.api.routes import dashboard_routes
+from app.api.routes import auth_routes
+from app.api.routes import conversation_routes
 from app.services.extraction_service import ExtractionService
 from app.mcp_client.agent import Agent
 from app.api.routes import user_routes
@@ -16,7 +18,8 @@ from app.database.session import engine
 
 
 import app.models.user
-import app.models.invoice  
+import app.models.invoice
+import app.models.conversation  
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +54,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth_routes.router)
 app.include_router(chat_routes.router)
+app.include_router(conversation_routes.router)
 app.include_router(invoice_routes.router)
 app.include_router(dashboard_routes.router)
 app.include_router(user_routes.router)

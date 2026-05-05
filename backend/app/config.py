@@ -18,11 +18,15 @@ class Settings(BaseSettings):
     # MCP server
     mcp_server_path: str = "../mcp-erp-server"
 
+    # JWT token configuration
+    SECRET_KEY: str 
+    JWT_ALGORITHM: str = "HS256"
+    JWT_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
     )
-
 
 
 settings = Settings()

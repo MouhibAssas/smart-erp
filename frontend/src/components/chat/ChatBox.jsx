@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import MessageBubble from "./MessageBubble";
 import InvoiceValidationForm from "./InvoiceValidationForm";
 import { confirmInvoice, sendMessage, uploadFile } from "../../services/chatApi";
+import { conversationApi } from "../../services/conversationApi";
 import "./ChatBox.css";
 
 export default function ChatBox() {
@@ -16,6 +17,7 @@ export default function ChatBox() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [pendingInvoice, setPendingInvoice] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [conversationId, setConversationId] = useState(null);
   const bottomRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -23,13 +25,56 @@ export default function ChatBox() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const getHistory = () =>
-    messages.map((m) => ({
-      role: m.sender === "user" ? "user" : "assistant",
-      content: m.text,
-    }));
+  // Listen for load-conversation event from Layout
+  useEffect(() => {
+    const handleLoadConversation = async (e) => {
+      const conv = e.detail;
+      setConversationId(conv.id);
+      setMessages([
+        {
+          id: 0,
+          text: "Hello! I'm your ERP assistant. Ask me anything about your invoices, purchases, HR data, or any business operations.",
+          sender: "bot",
+        },
+      ]);
+      setLoading(true);
+      try {
+        const { data } = await conversationApi.get(conv.id);
+        const loadedMessages = data.messages.map((msg, idx) => ({
+          id: idx,
+          text: msg.content,
+          sender: msg.role === "user" ? "user" : "bot",
+        }));
+        setMessages(loadedMessages);
+      } catch (err) {
+        console.error("Failed to load conversation", err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-      const handleSend = async () => {
+    window.addEventListener("load-conversation", handleLoadConversation);
+    return () => window.removeEventListener("load-conversation", handleLoadConversation);
+  }, []);
+
+  // Listen for new-conversation event from Layout
+  useEffect(() => {
+    const handleNewConversation = () => {
+      setConversationId(null);
+      setMessages([
+        {
+          id: 1,
+          text: "Hello! I'm your ERP assistant. Ask me anything about your invoices, purchases, HR data, or any business operations.",
+          sender: "bot",
+        },
+      ]);
+    };
+
+    window.addEventListener("new-conversation", handleNewConversation);
+    return () => window.removeEventListener("new-conversation", handleNewConversation);
+  }, []);
+
+  const handleSend = async () => {
     const text = input.trim();
     if ((!text && !selectedFile) || loading) return;
 
@@ -43,19 +88,25 @@ export default function ChatBox() {
 
     try {
       let response = "";
+      let newConvId = conversationId;
 
       if (selectedFile) {
-        const uploadResult = await uploadFile(selectedFile, payloadMessage);
-        // Store extracted invoice payload to open the validation form.
+        const uploadResult = await uploadFile(selectedFile, payloadMessage, conversationId);
+
+        newConvId = uploadResult.conversation_id;
+        setConversationId(newConvId);
+
         if (uploadResult?.extracted_data) {
           setPendingInvoice(uploadResult.extracted_data);
-          response = "✓ Invoice extracted successfully. Please review and confirm the details below.";
-        } else {
-          response = uploadResult?.response || "File processed. Please fill in the invoice details below.";
         }
+
+        // ✅ Always use backend response
+        response = uploadResult.response;
       } else {
-        const history = getHistory();
-        response = await sendMessage(payloadMessage, history);
+        const sendResult = await sendMessage(payloadMessage, conversationId);
+        newConvId = sendResult.conversation_id;
+        setConversationId(newConvId);
+        response = sendResult.response;
       }
 
       setMessages((prev) => [
@@ -66,12 +117,22 @@ export default function ChatBox() {
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
-    } catch {
+
+      // Refresh conversations in sidebar
+      if (window.__refreshConversations) {
+        window.__refreshConversations();
+      }
+      // Mark conversation as active
+      if (window.__setActiveConvId) {
+        window.__setActiveConvId(newConvId);
+      }
+    } catch (err) {
+      console.error("Chat error:", err);
       setMessages((prev) => [
         ...prev,
         {
           id: Date.now() + 1,
-          text: "Something went wrong. Please try again.",
+          text: err?.response?.data?.detail || "Something went wrong. Please try again.",
           sender: "bot",
         },
       ]);
@@ -130,8 +191,10 @@ export default function ChatBox() {
           <div className="chatbox-invoice-validation">
             <InvoiceValidationForm
               extractedData={pendingInvoice}
+              conversationId={conversationId}
               onConfirm={async (payload) => {
                 setPendingInvoice(null);
+                setLoading(true);
                 try {
                   const result = await confirmInvoice(payload);
                   if (result?.status !== "created") {
@@ -146,7 +209,7 @@ export default function ChatBox() {
                     ...prev,
                     {
                       id: Date.now() + 2,
-                      text: "Invoice confirmed and created successfully in Odoo.",
+                      text: result?.message || "Invoice creation failed.",
                       sender: "bot",
                     },
                   ]);
@@ -160,6 +223,8 @@ export default function ChatBox() {
                       sender: "bot",
                     },
                   ]);
+                } finally {
+                  setLoading(false);
                 }
               }}
               onCancel={() => setPendingInvoice(null)}

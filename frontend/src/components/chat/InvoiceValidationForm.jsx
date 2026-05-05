@@ -248,7 +248,9 @@ function ConfidenceBadge({ score }) {
   return <span className={`ivf-confidence ivf-confidence-${color}`}>{pct}% confidence</span>;
 }
 
-export default function InvoiceValidationForm({ extractedData, onConfirm, onCancel }) {
+export default function InvoiceValidationForm({ extractedData, conversationId, onConfirm, onCancel }) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const defaults = {
     invoice_number: "",
     invoice_date: "",
@@ -487,15 +489,21 @@ export default function InvoiceValidationForm({ extractedData, onConfirm, onCanc
     setLines(lines);
   };
 
-  const handleConfirm = () => {
-    const selectedPartnerId = partnerLookup[activePartnerKey]?.selectedId || null;
-    const payload = {
-      ...data,
-      invoice_type: invoiceType,
-      partner_id: selectedPartnerId,
-      totals: recalcTotals(data.lines),
-    };
-    if (onConfirm) onConfirm(payload);
+  const handleConfirm = async () => {
+    setIsSubmitting(true);
+    try {
+      const selectedPartnerId = partnerLookup[activePartnerKey]?.selectedId || null;
+      const payload = {
+        ...data,
+        invoice_type: invoiceType,
+        partner_id: selectedPartnerId,
+        conversation_id: conversationId,
+        totals: recalcTotals(data.lines),
+      };
+      if (onConfirm) await onConfirm(payload);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const isMissing = (field) => missing.includes(field);
@@ -772,17 +780,23 @@ export default function InvoiceValidationForm({ extractedData, onConfirm, onCanc
       )}
 
       <div className="ivf-actions">
-        <button onClick={onCancel} className="ivf-btn ivf-btn-secondary" type="button">
+        <button onClick={onCancel} className="ivf-btn ivf-btn-secondary" type="button" disabled={isSubmitting}>
           Cancel
         </button>
         <button
           onClick={handleConfirm}
           className="ivf-btn ivf-btn-primary"
           type="button"
-          disabled={!hasSelectedPartner}
-          title={!hasSelectedPartner ? "Select a partner from search results first" : undefined}
+          disabled={!hasSelectedPartner || isSubmitting}
+          title={
+            !hasSelectedPartner
+              ? "Select a partner from search results first"
+              : isSubmitting
+              ? "Processing invoice confirmation..."
+              : undefined
+          }
         >
-          Confirm and Send to Odoo
+          {isSubmitting ? "Processing..." : "Confirm and Send to Odoo"}
         </button>
       </div>
     </div>

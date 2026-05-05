@@ -1,9 +1,11 @@
 from pydantic import BaseModel
-from typing import  Any,Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 
 class ChatUploadResponse(BaseModel):
     response: str
+    conversation_id: int
+    message_id: int
     extracted_data: Optional[dict[str, Any]] = None  # None is now valid
     
 class MessageHistory(BaseModel):

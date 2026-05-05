@@ -1,9 +1,11 @@
 import logging
 from typing import Any, Dict, List
 
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, Query, Request, Depends
+from app.middleware.dependencies import require_roles
+from app.models.user import User
 
-router = APIRouter(prefix="/dashboard", tags=["dashboard"])
+router = APIRouter(prefix="/dashboard", tags=["dashboard"], dependencies=[Depends(require_roles("viewer", "operator", "admin"))])
 logger = logging.getLogger(__name__)
 
 
@@ -103,6 +105,7 @@ async def get_recent_unpaid_invoices(
 async def get_monthly_revenue(
 	request: Request,
 	months: int = Query(6, ge=1, le=36, description="How many months back to return."),
+	current_user: User = Depends(require_roles("admin", "operator")),
 ):
 	"""Monthly revenue timeseries used by dashboard charts."""
 	result = await request.app.state.agent._call_tool(

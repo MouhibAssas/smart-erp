@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { authService } from "../services/authService";
 import BarChart from "../components/dashboard/BarChart";
 import DonutChart from "../components/dashboard/DonutChart";
 import InvoiceRow from "../components/dashboard/InvoiceRow";
@@ -7,14 +8,7 @@ import { fmt } from "../components/dashboard/formatters";
 import { useKpis, useRecentInvoices, useRevenue } from "../hooks/useDashboard";
 import "./Dashboard.css";
 
-// ─── tiny auth helpers ────────────────────────────────────────────────────────
-// In a real app this comes from a JWT / session context.
-// For now we persist a chosen demo role in localStorage so the UI is testable.
-const ROLES = ["admin", "operator", "viewer"];
-const getRoleFromStorage = () => localStorage.getItem("demo_role") || "admin";
-const setRoleInStorage   = (r) => localStorage.setItem("demo_role", r);
-
-// ─── permission matrix ────────────────────────────────────────────────────────
+// ─── permission matrix ───────────────────────────────────────────────────────
 const PERMISSIONS = {
   admin:    { viewDashboard: true,  viewAdmin: true,  createInvoice: true,  viewRevenue: true  },
   operator: { viewDashboard: true,  viewAdmin: false, createInvoice: true,  viewRevenue: true  },
@@ -25,7 +19,8 @@ const can = (role, action) => !!(PERMISSIONS[role] || {})[action];
 
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
 export default function Dashboard() {
-  const [role, setRole] = useState(getRoleFromStorage());
+  const user = authService.getUser();
+  const role = (user && user.role) ? user.role : "viewer";
   // error is derived from query state
   // const [error, setError] = useState("");
   const [lastRefresh, setLastRefresh] = useState(null);
@@ -54,11 +49,6 @@ export default function Dashboard() {
 
   // `lastRefresh` is set manually on user refresh to avoid cascading state updates.
 
-  const handleRoleChange = (newRole) => {
-    setRole(newRole);
-    setRoleInStorage(newRole);
-  };
-
   // Donut segments
   const donutSegments = kpis ? [
     { label: "Unpaid invoices", value: kpis.unpaid_customer_invoices, color: "var(--dash-accent)" },
@@ -78,21 +68,6 @@ export default function Dashboard() {
           )}
         </div>
         <div className="dash-topbar-right">
-          {/* Demo role switcher */}
-          <div className="role-switcher">
-            <span className="role-switcher-label">Demo role:</span>
-            {ROLES.map((r) => (
-              <button
-                key={r}
-                onClick={() => handleRoleChange(r)}
-                className={`role-btn role-btn-${r} ${role === r ? "role-btn-active" : ""}`}
-                type="button"
-              >
-                {r}
-              </button>
-            ))}
-          </div>
-          
           <button
             className="dash-refresh-btn"
             onClick={() => {

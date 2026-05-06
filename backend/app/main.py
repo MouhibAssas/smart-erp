@@ -13,10 +13,6 @@ from app.mcp_client.agent import Agent
 from app.api.routes import user_routes
 
 
-from app.database.base import Base
-from app.database.session import engine
-
-
 import app.models.user
 import app.models.invoice
 import app.models.conversation  
@@ -30,8 +26,7 @@ async def lifespan(app: FastAPI):
     app.state.agent = Agent()
     logger.info("Agent initialized in app.state")
 
-    Base.metadata.create_all(bind=engine)
-    print("✓ Database tables created")
+    # Schema migrations are managed by Alembic; no startup migration required here.
     
     try:
         app.state.extraction_service = ExtractionService()

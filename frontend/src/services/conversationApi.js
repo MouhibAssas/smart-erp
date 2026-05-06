@@ -11,9 +11,9 @@ export const authApi = {
 
 export const conversationApi = {
   list:   ()         => httpClient.get("/conversations"),
-  get:    (id)       => httpClient.get(`/conversations/${id}`),
-  delete: (id)       => httpClient.delete(`/conversations/${id}`),
-  rename: (id, title) => httpClient.patch(`/conversations/${id}/title`, { title }),
+  get:    (publicId)       => httpClient.get(`/conversations/${publicId}`),
+  delete: (publicId)       => httpClient.delete(`/conversations/${publicId}`),
+  rename: (publicId, title) => httpClient.patch(`/conversations/${publicId}/title`, { title }),
 };
 
 // ── Persistent chat ───────────────────────────────────────────────────────────

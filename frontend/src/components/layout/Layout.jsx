@@ -17,11 +17,13 @@ export default function Layout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [conversations, setConversations] = useState([]);
   const [convsLoading, setConvsLoading] = useState(false);
-  const [activeConvId, setActiveConvId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
 
   const location = useLocation();
   const isOnChat = location.pathname.startsWith("/chat");
+  const activeConversationPublicId = location.pathname.startsWith("/chat/")
+    ? location.pathname.split("/")[2] ?? null
+    : null;
   const user = authService.getUser();
 
   // Guard: redirect to login if not authenticated
@@ -70,35 +72,24 @@ export default function Layout() {
     return () => { delete window.__refreshConversations; };
   }, [loadConversations]);
 
-  // Expose setActiveConvId so ChatBox can highlight active conv
-  useEffect(() => {
-    window.__setActiveConvId = setActiveConvId;
-    return () => { delete window.__setActiveConvId; };
-  }, []);
-
   const handleSelectConv = (conv) => {
-    setActiveConvId(conv.id);
     setMobileMenuOpen(false);
-    // Dispatch event so ChatBox can load this conversation
-    window.dispatchEvent(new CustomEvent("load-conversation", { detail: conv }));
+    navigate(`/chat/${conv.public_id}`);
   };
 
   const handleNewChat = () => {
-    setActiveConvId(null);
     setMobileMenuOpen(false);
-    window.dispatchEvent(new CustomEvent("new-conversation"));
     navigate("/chat");
   };
 
-  const handleDeleteConv = async (e, convId) => {
+  const handleDeleteConv = async (e, conv) => {
     e.stopPropagation();
-    setDeletingId(convId);
+    setDeletingId(conv.public_id);
     try {
-      await conversationApi.delete(convId);
-      setConversations((prev) => prev.filter((c) => c.id !== convId));
-      if (activeConvId === convId) {
-        setActiveConvId(null);
-        window.dispatchEvent(new CustomEvent("new-conversation"));
+      await conversationApi.delete(conv.public_id);
+      setConversations((prev) => prev.filter((c) => c.public_id !== conv.public_id));
+      if (activeConversationPublicId === conv.public_id) {
+        navigate("/chat");
       }
     } catch {
       // ignore
@@ -213,8 +204,8 @@ export default function Layout() {
             <div className="layout-conv-list">
               {conversations.map((conv) => (
                 <div
-                  key={conv.id}
-                  className={`layout-conv-item${activeConvId === conv.id ? " active" : ""}`}
+                  key={conv.public_id ?? conv.id}
+                  className={`layout-conv-item${activeConversationPublicId === conv.public_id ? " active" : ""}`}
                   onClick={() => handleSelectConv(conv)}
                   role="button"
                   tabIndex={0}
@@ -235,12 +226,12 @@ export default function Layout() {
                   <button
                     type="button"
                     className="layout-conv-delete"
-                    onClick={(e) => handleDeleteConv(e, conv.id)}
-                    disabled={deletingId === conv.id}
+                    onClick={(e) => handleDeleteConv(e, conv)}
+                    disabled={deletingId === conv.public_id}
                     title="Delete conversation"
                     aria-label="Delete conversation"
                   >
-                    {deletingId === conv.id ? (
+                    {deletingId === conv.public_id ? (
                       <span className="layout-conv-deleting" />
                     ) : (
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -284,7 +275,7 @@ export default function Layout() {
       </aside>
 
       <main className="layout-main">
-        <Outlet context={{ activeConvId, setActiveConvId }} />
+        <Outlet />
       </main>
     </div>
   );

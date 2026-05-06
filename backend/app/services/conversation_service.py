@@ -1,7 +1,8 @@
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from fastapi import HTTPException, status
 from app.repositories.conversation_repository import ConversationRepository, MessageRepository
-from app.models.conversation import Conversation, Message
+from app.models.conversation import Conversation, Message, generate_public_id
 
 
 class ConversationService:
@@ -9,10 +10,26 @@ class ConversationService:
         self.conv_repo = ConversationRepository(db)
         self.msg_repo = MessageRepository(db)
 
+    def _generate_unique_public_id(self) -> str:
+        for _ in range(20):
+            public_id = generate_public_id()
+            if not self.conv_repo.db.query(Conversation).filter(Conversation.public_id == public_id).first():
+                return public_id
+        raise RuntimeError("Unable to generate a unique conversation public_id")
+
     def create_conversation(self, user_id: int, title: str) -> Conversation:
         """Create a new conversation for a user."""
-        conversation = Conversation(user_id=user_id, title=title)
-        return self.conv_repo.save(conversation)
+        for _ in range(5):
+            conversation = Conversation(
+                user_id=user_id,
+                title=title,
+                public_id=self._generate_unique_public_id(),
+            )
+            try:
+                return self.conv_repo.save(conversation)
+            except IntegrityError:
+                self.conv_repo.db.rollback()
+        raise RuntimeError("Unable to persist a unique conversation")
 
     def get_user_conversations(self, user_id: int) -> list[Conversation]:
         """Get all conversations for a user, most recent first."""
@@ -28,9 +45,29 @@ class ConversationService:
             )
         return conversation
 
+    def get_conversation_by_public_id(self, public_id: str, user_id: int) -> Conversation:
+        """Get a specific conversation by public identifier with ownership enforcement."""
+        conversation = self.conv_repo.get_by_public_id(public_id)
+        if not conversation:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Conversation not found"
+            )
+        if conversation.user_id != user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized to access this conversation"
+            )
+        return conversation
+
     def delete_conversation(self, conversation_id: int, user_id: int) -> None:
         """Delete a conversation (with security check)."""
         conversation = self.get_conversation(conversation_id, user_id)
+        self.conv_repo.delete(conversation)
+
+    def delete_conversation_by_public_id(self, public_id: str, user_id: int) -> None:
+        """Delete a conversation by public identifier."""
+        conversation = self.get_conversation_by_public_id(public_id, user_id)
         self.conv_repo.delete(conversation)
 
     def add_message(self, conversation_id: int, role: str, content: str) -> Message:
@@ -46,6 +83,14 @@ class ConversationService:
     def update_title(self, conversation_id: int, user_id: int, new_title: str) -> Conversation:
         """Update conversation title."""
         conversation = self.get_conversation(conversation_id, user_id)
+        conversation.title = new_title
+        self.conv_repo.db.commit()
+        self.conv_repo.db.refresh(conversation)
+        return conversation
+
+    def update_title_by_public_id(self, public_id: str, user_id: int, new_title: str) -> Conversation:
+        """Update conversation title by public identifier."""
+        conversation = self.get_conversation_by_public_id(public_id, user_id)
         conversation.title = new_title
         self.conv_repo.db.commit()
         self.conv_repo.db.refresh(conversation)
@@ -77,19 +122,21 @@ class ConversationService:
         conversations = self.get_user_conversations(user_id)
         q = (query or "").strip()
 
+        def _payload(conversation: Conversation, match_source: str, preview: str | None = None) -> dict:
+            return {
+                "id": conversation.id,
+                "conversation_id": conversation.id,
+                "public_id": conversation.public_id,
+                "user_id": conversation.user_id,
+                "title": conversation.title,
+                "created_at": conversation.created_at,
+                "updated_at": conversation.updated_at,
+                "match_source": match_source,
+                "preview": preview,
+            }
+
         if not q:
-            return [
-                {
-                    "id": c.id,
-                    "user_id": c.user_id,
-                    "title": c.title,
-                    "created_at": c.created_at,
-                    "updated_at": c.updated_at,
-                    "match_source": "title",
-                    "preview": None,
-                }
-                for c in conversations
-            ]
+            return [_payload(c, "title") for c in conversations]
 
         lowered_q = q.lower()
         results: list[dict] = []
@@ -97,17 +144,7 @@ class ConversationService:
         for conversation in conversations:
             title = conversation.title or ""
             if lowered_q in title.lower():
-                results.append(
-                    {
-                        "id": conversation.id,
-                        "user_id": conversation.user_id,
-                        "title": conversation.title,
-                        "created_at": conversation.created_at,
-                        "updated_at": conversation.updated_at,
-                        "match_source": "title",
-                        "preview": None,
-                    }
-                )
+                results.append(_payload(conversation, "title"))
                 continue
 
             messages = self.msg_repo.get_by_conversation(conversation.id)
@@ -120,16 +157,6 @@ class ConversationService:
                 None,
             )
             if matching_message:
-                results.append(
-                    {
-                        "id": conversation.id,
-                        "user_id": conversation.user_id,
-                        "title": conversation.title,
-                        "created_at": conversation.created_at,
-                        "updated_at": conversation.updated_at,
-                        "match_source": "message",
-                        "preview": self._build_preview_snippet(matching_message.content, q),
-                    }
-                )
+                results.append(_payload(conversation, "message", self._build_preview_snippet(matching_message.content, q)))
 
         return results

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, computed_field
 from typing import Optional, List
 from datetime import datetime
 
@@ -14,12 +14,18 @@ class MessageSchema(BaseModel):
 
 class ConversationResponse(BaseModel):
     id: int
+    public_id: str
     user_id: int
     title: str
     created_at: datetime
     updated_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
+
+    @computed_field(return_type=int)
+    @property
+    def conversation_id(self) -> int:
+        return self.id
 
     @field_validator("updated_at", mode="before")
     @classmethod
@@ -32,6 +38,7 @@ class ConversationResponse(BaseModel):
 
 class ConversationDetailResponse(BaseModel):
     id: int
+    public_id: str
     user_id: int
     title: str
     created_at: datetime
@@ -39,6 +46,11 @@ class ConversationDetailResponse(BaseModel):
     messages: List[MessageSchema]
 
     model_config = {"from_attributes": True}
+
+    @computed_field(return_type=int)
+    @property
+    def conversation_id(self) -> int:
+        return self.id
 
     @field_validator("updated_at", mode="before")
     @classmethod
@@ -51,6 +63,7 @@ class ConversationDetailResponse(BaseModel):
 
 class ConversationSearchResponse(BaseModel):
     id: int
+    public_id: str
     user_id: int
     title: str
     created_at: datetime
@@ -59,6 +72,11 @@ class ConversationSearchResponse(BaseModel):
     preview: Optional[str] = None
 
     model_config = {"from_attributes": True}
+
+    @computed_field(return_type=int)
+    @property
+    def conversation_id(self) -> int:
+        return self.id
 
     @field_validator("updated_at", mode="before")
     @classmethod
@@ -75,5 +93,6 @@ class ChatPersistentRequest(BaseModel):
 
 class ChatPersistentResponse(BaseModel):
     conversation_id: int
+    public_id: str
     message_id: int
     response: str

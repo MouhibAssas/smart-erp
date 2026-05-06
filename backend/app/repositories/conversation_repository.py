@@ -14,6 +14,12 @@ class ConversationRepository(BaseRepository[Conversation]):
             Conversation.user_id == user_id
         ).order_by(Conversation.updated_at.desc()).all()
 
+    def get_by_public_id(self, public_id: str) -> Optional[Conversation]:
+        """Get a conversation by its public URL-safe identifier."""
+        return self.db.query(Conversation).filter(
+            Conversation.public_id == public_id
+        ).first()
+
     def get_by_id_and_user(self, conversation_id: int, user_id: int) -> Optional[Conversation]:
         """Get a conversation only if it belongs to the user (security check)."""
         return self.db.query(Conversation).filter(

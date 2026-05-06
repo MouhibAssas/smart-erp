@@ -26,37 +26,37 @@ def list_conversations(
     return conversations
 
 
-@router.get("/{conversation_id}", response_model=ConversationDetailResponse)
+@router.get("/{public_id}", response_model=ConversationDetailResponse)
 def get_conversation(
-    conversation_id: int,
+    public_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get a specific conversation with all its messages."""
     service = ConversationService(db)
-    conversation = service.get_conversation(conversation_id, current_user.id)
+    conversation = service.get_conversation_by_public_id(public_id, current_user.id)
     return conversation
 
 
-@router.delete("/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{public_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_conversation(
-    conversation_id: int,
+    public_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Delete a conversation."""
     service = ConversationService(db)
-    service.delete_conversation(conversation_id, current_user.id)
+    service.delete_conversation_by_public_id(public_id, current_user.id)
 
 
-@router.patch("/{conversation_id}/title", response_model=ConversationResponse)
+@router.patch("/{public_id}/title", response_model=ConversationResponse)
 def update_conversation_title(
-    conversation_id: int,
+    public_id: str,
     payload: ConversationTitleUpdate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Update a conversation's title."""
     service = ConversationService(db)
-    conversation = service.update_title(conversation_id, current_user.id, payload.title)
+    conversation = service.update_title_by_public_id(public_id, current_user.id, payload.title)
     return conversation

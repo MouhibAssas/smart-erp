@@ -29,7 +29,10 @@ function AppRoutes() {
         }
       >
         <Route index element={<Navigate to="/chat" replace />} />
-        <Route path="chat" element={<Chat />} />
+        <Route path="chat">
+          <Route index element={<Chat />} />
+          <Route path=":publicId" element={<Chat />} />
+        </Route>
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="admin" element={isAdmin ? <AdminPanel /> : <Navigate to="/" replace />} />
       </Route>

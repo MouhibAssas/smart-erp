@@ -1,7 +1,11 @@
+import { useParams } from "react-router-dom";
 import ChatBox from "../components/chat/ChatBox.jsx";
+import ChatHome from "../components/chat/ChatHome.jsx";
 import "./Chat.css";
 
 export default function Chat() {
+  const { publicId } = useParams();
+
   return (
     <div className="chat-container">
 
@@ -17,7 +21,7 @@ export default function Chat() {
 
         {/* Chat */}
         <div className="chat-content">
-          <ChatBox />
+          {!publicId ? <ChatHome /> : <ChatBox />}
         </div>
       </div>
     </div>

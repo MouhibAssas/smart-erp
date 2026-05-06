@@ -1,0 +1,219 @@
+.chathome-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #f9f9fb;
+  overflow: hidden;
+  justify-content: center;
+  align-items: center;
+}
+
+.chathome-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 40px;
+  text-align: center;
+  width: 100%;
+  max-width: 600px;
+}
+
+.chathome-welcome {
+  margin-bottom: 40px;
+}
+
+.chathome-title {
+  font-size: 48px;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin: 0 0 12px 0;
+  letter-spacing: -0.5px;
+}
+
+.chathome-subtitle {
+  font-size: 16px;
+  color: #666;
+  margin: 0;
+  line-height: 1.6;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.chathome-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 20px;
+  width: 100%;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 0 24px;
+}
+
+.chathome-suggestion-chip {
+  padding: 10px 16px;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+  background: #fff;
+  color: #333;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.chathome-suggestion-chip:hover {
+  border-color: #999;
+  background: #f5f5f5;
+}
+
+.chathome-suggestion-chip:active {
+  background: #efefef;
+}
+
+.chathome-input-area {
+  padding: 20px 24px;
+  background: transparent;
+  flex-shrink: 0;
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.chathome-file-input {
+  display: none;
+}
+
+.chathome-input-wrapper {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  width: 100%;
+  position: relative;
+}
+
+.chathome-attach-button {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  background: #f5f5f5;
+  color: #666;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  padding: 0;
+  line-height: 1;
+}
+
+.chathome-attach-button:hover:not(:disabled) {
+  background: #e8e8e8;
+  color: #333;
+}
+
+.chathome-attach-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.chathome-textarea {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #f9f9fb;
+  font-family: inherit;
+  font-size: 14px;
+  resize: none;
+  max-height: 120px;
+  outline: none;
+  transition: all 0.15s;
+}
+
+.chathome-textarea:focus {
+  border-color: #999;
+  background: #fff;
+}
+
+.chathome-textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.chathome-file-pill {
+  position: absolute;
+  bottom: 100%;
+  left: 46px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: #f0f0f0;
+  font-size: 12px;
+  color: #333;
+  max-width: 200px;
+  margin-bottom: 8px;
+}
+
+.chathome-file-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chathome-file-remove {
+  background: none;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0;
+  line-height: 1;
+  transition: color 0.15s;
+}
+
+.chathome-file-remove:hover:not(:disabled) {
+  color: #333;
+}
+
+.chathome-file-remove:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.chathome-send-button {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-radius: 8px;
+  border: none;
+  background: #3b82f6;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  padding: 0;
+}
+
+.chathome-send-button:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.chathome-send-button:active:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.chathome-send-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

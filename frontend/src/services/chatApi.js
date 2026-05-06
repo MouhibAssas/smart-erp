@@ -4,7 +4,7 @@
 import { persistentChatApi } from "./conversationApi";
 
 // Send a text-only chat message to the backend (persistent).
-// Returns: { conversation_id, message_id, response }
+// Returns: { conversation_id, public_id, message_id, response }
 export const sendMessage = async (message, conversation_id = null) => {
   const { data } = await persistentChatApi.send(message, conversation_id);
   return data;  // Return full object, not just response

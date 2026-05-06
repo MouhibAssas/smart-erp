@@ -54,7 +54,7 @@ async def chat_upload(
             conversation = conv_service.create_conversation(current_user.id, title)
             conversation_id = conversation.id
         else:
-            conv_service.get_conversation(conversation_id, current_user.id)
+            conversation = conv_service.get_conversation(conversation_id, current_user.id)
 
         user_content = message.strip() or "Please analyze this invoice document."
         if filename and filename not in user_content:
@@ -94,6 +94,7 @@ async def chat_upload(
         return ChatUploadResponse(
             response=response,
             conversation_id=conversation_id,
+            public_id=conversation.public_id,
             message_id=ai_msg.id,
             extracted_data=extracted_data,
         )
@@ -130,7 +131,7 @@ async def chat_persistent(
             conversation_id = conversation.id
         else:
             # Verify user owns this conversation
-            conv_service.get_conversation(conversation_id, current_user.id)
+            conversation = conv_service.get_conversation(conversation_id, current_user.id)
         
         # Load conversation history from database and normalize roles for LLM
         messages_in_db = conv_service.get_conversation_messages(conversation_id, current_user.id)
@@ -150,6 +151,7 @@ async def chat_persistent(
         
         return ChatPersistentResponse(
             conversation_id=conversation_id,
+            public_id=conversation.public_id,
             message_id=ai_msg.id,
             response=ai_response
         )

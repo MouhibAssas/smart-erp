@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import MessageBubble from "./MessageBubble";
 import InvoiceValidationForm from "./InvoiceValidationForm";
 import { confirmInvoice, sendMessage, uploadFile } from "../../services/chatApi";
@@ -6,13 +7,9 @@ import { conversationApi } from "../../services/conversationApi";
 import "./ChatBox.css";
 
 export default function ChatBox() {
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      text: "Hello! I'm your ERP assistant. Ask me anything about your invoices, purchases, HR data, or any business operations.",
-      sender: "bot",
-    },
-  ]);
+  const navigate = useNavigate();
+  const { publicId } = useParams();
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [selectedFile, setSelectedFile] = useState(null);
   const [pendingInvoice, setPendingInvoice] = useState(null);
@@ -20,59 +17,90 @@ export default function ChatBox() {
   const [conversationId, setConversationId] = useState(null);
   const bottomRef = useRef(null);
   const fileInputRef = useRef(null);
+  const previousPublicIdRef = useRef(publicId);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Listen for load-conversation event from Layout
   useEffect(() => {
-    const handleLoadConversation = async (e) => {
-      const conv = e.detail;
-      setConversationId(conv.id);
-      setMessages([
-        {
-          id: 0,
-          text: "Hello! I'm your ERP assistant. Ask me anything about your invoices, purchases, HR data, or any business operations.",
-          sender: "bot",
-        },
-      ]);
+    let cancelled = false;
+    const previousPublicId = previousPublicIdRef.current;
+    previousPublicIdRef.current = publicId;
+
+    const loadConversation = async () => {
+      setSelectedFile(null);
+      setInput("");
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+
+      if (!publicId) {
+        setPendingInvoice(null);
+        setConversationId(null);
+        setLoading(false);
+        setMessages([]);
+        return;
+      }
+
+      if (previousPublicId && previousPublicId !== publicId) {
+        setPendingInvoice(null);
+      }
+
       setLoading(true);
+      setMessages([]);
       try {
-        const { data } = await conversationApi.get(conv.id);
-        const loadedMessages = data.messages.map((msg, idx) => ({
-          id: idx,
+        const { data } = await conversationApi.get(publicId);
+        if (cancelled) {
+          return;
+        }
+
+        setConversationId(data.conversation_id ?? data.id);
+        const loadedMessages = (data.messages || []).map((msg, idx) => ({
+          id: msg.id ?? idx,
           text: msg.content,
           sender: msg.role === "user" ? "user" : "bot",
         }));
         setMessages(loadedMessages);
+
+        // Check if ChatHome passed extracted invoice data via session storage
+        const pendingInvoiceJson = sessionStorage.getItem("pendingInvoiceData");
+        if (pendingInvoiceJson) {
+          try {
+            const invoiceData = JSON.parse(pendingInvoiceJson);
+            setPendingInvoice(invoiceData);
+            sessionStorage.removeItem("pendingInvoiceData");
+          } catch (e) {
+            console.error("Failed to parse pending invoice data:", e);
+          }
+        }
       } catch (err) {
+        if (cancelled) {
+          return;
+        }
+
         console.error("Failed to load conversation", err);
+        setConversationId(null);
+        setMessages([
+          {
+            id: Date.now(),
+            text: err?.response?.status === 404 ? "Conversation not found." : "Unable to load this conversation.",
+            sender: "bot",
+          },
+        ]);
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     };
 
-    window.addEventListener("load-conversation", handleLoadConversation);
-    return () => window.removeEventListener("load-conversation", handleLoadConversation);
-  }, []);
+    loadConversation();
 
-  // Listen for new-conversation event from Layout
-  useEffect(() => {
-    const handleNewConversation = () => {
-      setConversationId(null);
-      setMessages([
-        {
-          id: 1,
-          text: "Hello! I'm your ERP assistant. Ask me anything about your invoices, purchases, HR data, or any business operations.",
-          sender: "bot",
-        },
-      ]);
+    return () => {
+      cancelled = true;
     };
-
-    window.addEventListener("new-conversation", handleNewConversation);
-    return () => window.removeEventListener("new-conversation", handleNewConversation);
-  }, []);
+  }, [publicId]);
 
   const handleSend = async () => {
     const text = input.trim();
@@ -102,11 +130,19 @@ export default function ChatBox() {
 
         // ✅ Always use backend response
         response = uploadResult.response;
+
+        if (uploadResult.public_id && uploadResult.public_id !== publicId) {
+          navigate(`/chat/${uploadResult.public_id}`);
+        }
       } else {
         const sendResult = await sendMessage(payloadMessage, conversationId);
         newConvId = sendResult.conversation_id;
         setConversationId(newConvId);
         response = sendResult.response;
+
+        if (sendResult.public_id && sendResult.public_id !== publicId) {
+          navigate(`/chat/${sendResult.public_id}`);
+        }
       }
 
       setMessages((prev) => [
@@ -121,10 +157,6 @@ export default function ChatBox() {
       // Refresh conversations in sidebar
       if (window.__refreshConversations) {
         window.__refreshConversations();
-      }
-      // Mark conversation as active
-      if (window.__setActiveConvId) {
-        window.__setActiveConvId(newConvId);
       }
     } catch (err) {
       console.error("Chat error:", err);

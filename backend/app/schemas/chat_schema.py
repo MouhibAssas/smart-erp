@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional
 class ChatUploadResponse(BaseModel):
     response: str
     conversation_id: int
+    public_id: str
     message_id: int
     extracted_data: Optional[dict[str, Any]] = None  # None is now valid
     

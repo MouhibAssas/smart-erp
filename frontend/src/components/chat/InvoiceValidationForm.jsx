@@ -449,13 +449,22 @@ export default function InvoiceValidationForm({ extractedData, conversationId, o
       return s + lt * (tr / 100);
     }, 0);
 
-    const discount = parseFloat(data.totals.discount) || 0;
+    // Calculate discount as sum of all line item discounts (including tax on discounted amount)
+    const discount = normalizedLines.reduce((total, l) => {
+      const q = parseFloat(l.quantity) || 0;
+      const p = parseFloat(l.unit_price) || 0;
+      const d = Math.max(0, Math.min(100, parseFloat(l.discount) || 0));
+      const tr = parseFloat(l.tax_rate) || 0;
+      // Discount includes: base discount + tax on the discounted amount
+      const lineDiscount = q * p * (d / 100) * (1 + tr / 100);
+      return total + lineDiscount;
+    }, 0);
 
     return {
       subtotal: parseFloat(subtotal.toFixed(2)),
       tax_amount: parseFloat(taxAmount.toFixed(2)),
-      discount,
-      total_due: parseFloat((subtotal + taxAmount - discount).toFixed(2)),
+      discount: parseFloat(discount.toFixed(2)),
+      total_due: parseFloat((subtotal + taxAmount).toFixed(2)),
     };
   };
 
@@ -721,21 +730,6 @@ export default function InvoiceValidationForm({ extractedData, conversationId, o
             <span className="ivf-money-cell">
               {(parseFloat(data.totals.total_due) || 0).toFixed(2)} {data.currency}
             </span>
-          </div>
-
-          <div className="ivf-discount-row">
-            <span className="ivf-discount-label">Discount override</span>
-            <input
-              type="number"
-              value={data.totals.discount}
-              onChange={(e) =>
-                setData((d) => ({
-                  ...d,
-                  totals: { ...d.totals, discount: parseFloat(e.target.value) || 0 },
-                }))
-              }
-              className="ivf-discount-input"
-            />
           </div>
         </div>
       </SectionCard>

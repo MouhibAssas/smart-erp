@@ -1,3 +1,4 @@
+import asyncio
 from typing import Annotated, Any, Dict, List
 
 from fastmcp import Context
@@ -73,7 +74,8 @@ async def get_unpaid_invoices(
 			f"Searching unpaid invoices type={normalized_type} limit={limit}"
 		)
 
-		invoices = client.search_invoices(
+		invoices = await asyncio.to_thread(
+			client.search_invoices,
 			filters={"domain": domain},
 			limit=limit,
 			model="account.move",

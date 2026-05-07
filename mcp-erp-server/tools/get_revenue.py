@@ -1,3 +1,4 @@
+import asyncio
 from typing import Annotated, Any, Dict, List
 from fastmcp import Context
 from pydantic import Field
@@ -53,13 +54,14 @@ async def get_revenue(
         if months_back and months_back > 0:
             # Return a range of months
             data: List[Dict[str, Any]] = []
-           # n = min(int(months_back), 12) # no 1 year limit at the moment !
+            # n = min(int(months_back), 12) # no 1 year limit at the moment !
             n = int(months_back)
 
             start_year = today.year
             start_month = today.month
             end_year = today.year
             end_month = today.month
+            month_pairs: List[tuple[int, int]] = []
             for i in range(n - 1, -1, -1):
                 m = today.month - i
                 y = today.year
@@ -72,10 +74,22 @@ async def get_revenue(
                 if i == 0:
                     end_year = y
                     end_month = m
-                try:
-                    revenue = client.get_monthly_revenue(year=y, month=m)
-                except Exception:
-                    revenue = 0.0
+                month_pairs.append((y, m))
+
+            semaphore = asyncio.Semaphore(4)
+
+            async def _fetch_month_revenue(y: int, m: int) -> float:
+                async with semaphore:
+                    try:
+                        return float(await asyncio.to_thread(client.get_monthly_revenue, year=y, month=m))
+                    except Exception:
+                        return 0.0
+
+            revenues = await asyncio.gather(
+                *[_fetch_month_revenue(y, m) for y, m in month_pairs]
+            )
+
+            for (y, m), revenue in zip(month_pairs, revenues):
                 label = _short_month_label(y, m)
                 data.append({
                     "month": label,
@@ -104,7 +118,7 @@ async def get_revenue(
         # Single month
         y = int(year) if year else today.year
         m = int(month) if month else today.month
-        revenue = client.get_monthly_revenue(year=y, month=m)
+        revenue = await asyncio.to_thread(client.get_monthly_revenue, year=y, month=m)
         label = _month_label(y, m)
         await ctx.info(
             f"Computed revenue for {label} | total={round(revenue, 2)}"

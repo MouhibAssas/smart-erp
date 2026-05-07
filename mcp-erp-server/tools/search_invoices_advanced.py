@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from datetime import date, datetime
 from typing import Annotated, Any, Dict, List, Optional
@@ -149,17 +150,26 @@ async def search_invoices_advanced(
         )
 
         # ── fetch count and records ───────────────────────────────────────────
-        total_matching = client.count_invoices(
-            filters={"domain": domain},
-            model="account.move",
-        )
-
         records: List[Dict[str, Any]] = []
-        if not count_only:
-            records = client.search_invoices(
+        if count_only:
+            total_matching = await asyncio.to_thread(
+                client.count_invoices,
                 filters={"domain": domain},
-                limit=limit,
                 model="account.move",
+            )
+        else:
+            total_matching, records = await asyncio.gather(
+                asyncio.to_thread(
+                    client.count_invoices,
+                    filters={"domain": domain},
+                    model="account.move",
+                ),
+                asyncio.to_thread(
+                    client.search_invoices,
+                    filters={"domain": domain},
+                    limit=limit,
+                    model="account.move",
+                ),
             )
 
         # ── compute summary ───────────────────────────────────────────────────

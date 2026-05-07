@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import re
@@ -534,13 +535,13 @@ async def create_invoice(
         default_account_id = 0
         if needs_account:
             await ctx.info("Resolving default account_id for lines")
-            default_account_id = _resolve_default_account(client, move_type)
+            default_account_id = await asyncio.to_thread(_resolve_default_account, client, move_type)
             await ctx.info(f"Default account_id={default_account_id}")
 
         # ── Step 6: build vals and create ─────────────────────────────
-        vals = _build_odoo_vals(client, raw, partner_id, default_account_id)
-        record_id = client.create_invoice(vals=vals)
-        record = client.read_invoice(record_id=record_id)
+        vals = await asyncio.to_thread(_build_odoo_vals, client, raw, partner_id, default_account_id)
+        record_id = await asyncio.to_thread(client.create_invoice, vals=vals)
+        record = await asyncio.to_thread(client.read_invoice, record_id=record_id)
 
         await ctx.info(f"Invoice created: id={record_id} name={record.get('name')}")
         return {

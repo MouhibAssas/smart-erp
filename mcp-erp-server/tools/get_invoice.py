@@ -1,3 +1,4 @@
+import asyncio
 from typing import Annotated, Any, Dict
 
 from fastmcp import Context
@@ -35,7 +36,7 @@ async def get_invoice(
 	await ctx.info(f"Reading invoice id={record_id}")
 
 	try:
-		invoice = client.read_invoice(record_id=record_id)
+		invoice = await asyncio.to_thread(client.read_invoice, record_id=record_id)
 		await ctx.info(f"Invoice fetched — id {invoice.get('id')}")
 		partner = invoice.get("partner_id")
 		partner_label = None

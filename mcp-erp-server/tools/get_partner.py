@@ -1,3 +1,4 @@
+import asyncio
 from typing import Annotated, Any, Dict
 
 from fastmcp import Context
@@ -58,12 +59,13 @@ async def get_partner(
     try:
         if has_id:
             await ctx.info(f"Reading partner id={partner_id}")
-            partner = client.read_partner(record_id=partner_id)
+            partner = await asyncio.to_thread(client.read_partner, record_id=partner_id)
             partners = [partner]
         else:
             name = str(partner_name).strip()
             await ctx.info(f"Searching partner by name: {name}")
-            matches = client.search_partners(
+            matches = await asyncio.to_thread(
+                client.search_partners,
                 filters={"domain": [["name", "ilike", name]]},
                 limit=max_results,
             )

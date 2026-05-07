@@ -1,3 +1,4 @@
+import asyncio
 from typing import Annotated, Any, Dict
 
 from fastmcp import Context
@@ -34,9 +35,21 @@ async def get_employee(
         str | None,
         Field(description="Department name to search for employees in that department."),
     ] = None,
+    max_results: Annotated[
+        int,
+        Field(description="Maximum number of employee matches to return when searching by name."),
+    ] = 10,
     ctx: Context = None,
 ) -> Dict[str, Any]:
     """Get an Odoo employee by ID, name, email, job title, or department."""
+
+    def _format_employee_line(employee: Dict[str, Any]) -> str:
+        parts = [f"ID: {employee.get('id')}", f"Name: {employee.get('name') or '-'}"]
+        if employee.get("work_email"):
+            parts.append(f"Email: {employee.get('work_email')}")
+        if employee.get("mobile_phone"):
+            parts.append(f"Mobile: {employee.get('mobile_phone')}")
+        return " | ".join(parts)
 
     has_id = employee_id is not None
     has_name = bool(employee_name and str(employee_name).strip())
@@ -50,6 +63,9 @@ async def get_employee(
             "error": "Provide either employee_id, employee_name, work_email, job_name, or department_name.",
         }
 
+    if max_results <= 0:
+        return {"ok": False, "error": "max_results must be greater than 0."}
+
     try:
         client = _get_client(ctx)
     except RuntimeError as exc:
@@ -58,24 +74,27 @@ async def get_employee(
     try:
         if has_id:
             await ctx.info(f"Reading employee id={employee_id}")
-            employee = client.read_employee(record_id=employee_id)
+            employee = await asyncio.to_thread(client.read_employee, record_id=employee_id)
+            employees = [employee]
         elif has_name:
             name = str(employee_name).strip()
             await ctx.info(f"Searching employee by name: {name}")
-            matches = client.search_employees(
+            employees = await asyncio.to_thread(
+                client.search_employees,
                 filters={"domain": [["name", "ilike", name]]},
-                limit=1,
+                limit=max_results,
             )
-            if not matches:
+            if not employees:
                 return {
                     "ok": False,
                     "error": f"No employee found with name '{name}'.",
                 }
-            employee = matches[0]
+            employee = employees[0]
         elif has_email:
             email = str(work_email).strip()
             await ctx.info(f"Searching employee by work email: {email}")
-            matches = client.search_employees(
+            matches = await asyncio.to_thread(
+                client.search_employees,
                 filters={"domain": [["work_email", "ilike", email]]},
                 limit=1,
             )
@@ -85,10 +104,12 @@ async def get_employee(
                     "error": f"No employee found with work email '{email}'.",
                 }
             employee = matches[0]
+            employees = [employee]
         elif has_job:
             job = str(job_name).strip()
             await ctx.info(f"Searching job by name: {job}")
-            job_matches = client.search_jobs(
+            job_matches = await asyncio.to_thread(
+                client.search_jobs,
                 filters={"domain": [["name", "ilike", job]]},
                 limit=1,
             )
@@ -99,7 +120,8 @@ async def get_employee(
                 }
             job_id = job_matches[0]["id"]
             await ctx.info(f"Searching employees with job_id={job_id}")
-            matches = client.search_employees(
+            matches = await asyncio.to_thread(
+                client.search_employees,
                 filters={"domain": [["job_id", "=", job_id]]},
                 limit=1,
             )
@@ -109,10 +131,12 @@ async def get_employee(
                     "error": f"No employee found with job '{job}'.",
                 }
             employee = matches[0]
+            employees = [employee]
         else:  # has_dept
             dept = str(department_name).strip()
             await ctx.info(f"Searching department by name: {dept}")
-            dept_matches = client.search_departments(
+            dept_matches = await asyncio.to_thread(
+                client.search_departments,
                 filters={"domain": [["name", "ilike", dept]]},
                 limit=1,
             )
@@ -123,7 +147,8 @@ async def get_employee(
                 }
             dept_id = dept_matches[0]["id"]
             await ctx.info(f"Searching employees with department_id={dept_id}")
-            matches = client.search_employees(
+            matches = await asyncio.to_thread(
+                client.search_employees,
                 filters={"domain": [["department_id", "=", dept_id]]},
                 limit=1,
             )
@@ -133,12 +158,23 @@ async def get_employee(
                     "error": f"No employee found in department '{dept}'.",
                 }
             employee = matches[0]
+            employees = [employee]
 
-        await ctx.info(f"Employee fetched — id {employee.get('id')}")
+        if has_name:
+            employee_ids = [e.get("id") for e in employees]
+            await ctx.info(f"Found {len(employees)} employee(s) with IDs: {employee_ids}")
+            response_lines = [f"Found {len(employees)} employee(s) matching '{name}':"]
+            for item in employees:
+                response_lines.append(f"- {_format_employee_line(item)}")
+            response_text = "\n".join(response_lines)
+        else:
+            await ctx.info(f"Employee fetched — id {employee.get('id')}")
+            response_text = f"Employee found: {_format_employee_line(employee)}"
 
         return {
             "ok": True,
             "message": "Employee data fetched successfully",
+            "response": response_text,
             "summary": {
                 "id": employee.get("id"),
                 "name": employee.get("name"),
@@ -149,6 +185,8 @@ async def get_employee(
                 "company_id": employee.get("company_id"),
                 "marital": employee.get("marital"),
             },
+            "count": len(employees),
+            "employees": employees,
             "employee": employee,
             "data": employee,
         }

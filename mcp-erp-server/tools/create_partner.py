@@ -1,3 +1,4 @@
+import asyncio
 from typing import Annotated, Any, Dict
 
 from fastmcp import Context
@@ -80,8 +81,8 @@ async def create_partner(
             if value and str(value).strip() and str(value).strip().lower() != "null":
                 vals[field_name] = str(value).strip()
 
-        partner_id = client.create_partner(vals=vals)
-        partner = client.read_partner(record_id=partner_id)
+        partner_id = await asyncio.to_thread(client.create_partner, vals=vals)
+        partner = await asyncio.to_thread(client.read_partner, record_id=partner_id)
         await ctx.info(f"Partner created: id={partner_id} name={partner.get('name')}")
 
         return {

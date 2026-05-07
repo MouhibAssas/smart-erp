@@ -1,3 +1,4 @@
+import asyncio
 from typing import Annotated, Any, Dict, Union
 
 from fastmcp import Context
@@ -40,16 +41,22 @@ async def _resolve_id(
         
         try:
             if odoo_model == "hr.department":
-                matches = client.search_departments(
-                    filters={"domain": [["name", "ilike", name]]}, limit=1
+                matches = await asyncio.to_thread(
+                    client.search_departments,
+                    filters={"domain": [["name", "ilike", name]]},
+                    limit=1,
                 )
             elif odoo_model == "res.company":
-                matches = client.search_companies(
-                    filters={"domain": [["name", "ilike", name]]}, limit=1
+                matches = await asyncio.to_thread(
+                    client.search_companies,
+                    filters={"domain": [["name", "ilike", name]]},
+                    limit=1,
                 )
             elif odoo_model == "hr.work.location":
-                matches = client.search_work_locations(
-                    filters={"domain": [["name", "ilike", name]]}, limit=1
+                matches = await asyncio.to_thread(
+                    client.search_work_locations,
+                    filters={"domain": [["name", "ilike", name]]},
+                    limit=1,
                 )
             else:
                 return None
@@ -194,8 +201,8 @@ async def create_employee(
         if parsed_country_id is not None:
             vals["country_id"] = parsed_country_id
 
-        employee_id = client.create_employee(vals=vals)
-        employee = client.read_employee(record_id=employee_id)
+        employee_id = await asyncio.to_thread(client.create_employee, vals=vals)
+        employee = await asyncio.to_thread(client.read_employee, record_id=employee_id)
         await ctx.info(f"Employee created: id={employee_id} name={employee.get('name')}")
 
         return {

@@ -21,8 +21,16 @@ class UserCreate(BaseModel):
 class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     email: Optional[EmailStr] = None
+    password: Optional[str] = None
     role: Optional[UserRole] = None
     is_active: Optional[bool] = None
+
+    @field_validator("password")
+    @classmethod
+    def optional_password_strength(cls, v):
+        if v is not None and len(v) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        return v
 
 # What the API returns — never includes hashed_password
 class UserResponse(BaseModel):

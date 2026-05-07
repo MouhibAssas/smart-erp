@@ -53,6 +53,9 @@ class UserService:
         if data.role is not None and data.role != user.role:
             user.role = data.role
             changed = True
+        if data.password is not None:
+            user.hashed_password = hash_password(data.password)
+            changed = True
 
         if data.is_active is not None and data.is_active != user.is_active:
             user.is_active = data.is_active

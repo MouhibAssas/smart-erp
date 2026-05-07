@@ -60,10 +60,17 @@ export default function AdminPanel() {
       setFormError("Password must be at least 8 characters.");
       return;
     }
+    if (editUser && form.password && form.password.length < 8) {
+      setFormError("Password must be at least 8 characters.");
+      return;
+    }
     setSubmitting(true);
     try {
       if (editUser) {
         const payload = { full_name: form.full_name, email: form.email, role: form.role };
+        if (form.password) {
+          payload.password = form.password;
+        }
         await userApi.update(editUser.id, payload);
       } else {
         await userApi.create(form);
@@ -214,18 +221,14 @@ export default function AdminPanel() {
                 onChange={e => setForm({ ...form, email: e.target.value })}
               />
 
-              {!editUser && (
-                <>
-                  <label className="field-label">Password</label>
-                  <input
-                    className="field-input"
-                    type="password"
-                    placeholder="Minimum 8 characters"
-                    value={form.password}
-                    onChange={e => setForm({ ...form, password: e.target.value })}
-                  />
-                </>
-              )}
+              <label className="field-label">Password {editUser ? "(optional)" : ""}</label>
+              <input
+                className="field-input"
+                type="password"
+                placeholder={editUser ? "Leave blank to keep current password" : "Minimum 8 characters"}
+                value={form.password}
+                onChange={e => setForm({ ...form, password: e.target.value })}
+              />
 
               <label className="field-label">Role</label>
               <select

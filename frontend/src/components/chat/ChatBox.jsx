@@ -56,7 +56,13 @@ export default function ChatBox() {
         }
 
         setConversationId(data.conversation_id ?? data.id);
-        const loadedMessages = (data.messages || []).map((msg, idx) => ({
+        const sortedMessages = [...(data.messages || [])].sort((a, b) => {
+          const timeA = a?.created_at ? Date.parse(a.created_at) : 0;
+          const timeB = b?.created_at ? Date.parse(b.created_at) : 0;
+          if (timeA !== timeB) return timeA - timeB;
+          return (a?.id || 0) - (b?.id || 0);
+        });
+        const loadedMessages = sortedMessages.map((msg, idx) => ({
           id: msg.id ?? idx,
           text: msg.content,
           sender: msg.role === "user" ? "user" : "bot",

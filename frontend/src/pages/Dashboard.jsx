@@ -164,7 +164,7 @@ export default function Dashboard() {
               </div>
               ) : derivedRevenueData.length > 0 ? (
               <>
-                <BarChart data={derivedRevenueData} height={130} />
+                <BarChart data={derivedRevenueData} height={96} />
                 <div className="chart-bar-legend">
                   {derivedRevenueData.map((d, i) => (
                     <div key={i} className={`chart-bar-row ${i === derivedRevenueData.length - 1 ? "chart-bar-row-last" : ""}`}>

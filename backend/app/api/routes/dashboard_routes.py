@@ -1,4 +1,5 @@
 import logging
+import asyncio
 from typing import Any, Dict, List
 
 from fastapi import APIRouter, Query, Request, Depends
@@ -30,21 +31,38 @@ async def get_dashboard_kpis(
 	"""Dashboard KPI endpoint that aggregates unpaid stats and current month revenue."""
 	agent = request.app.state.agent
 
-	customer_result = await agent._call_tool(
+	customer_task = agent._call_tool(
 		"get_unpaid_invoices",
 		{"invoice_type": "customer", "limit": list_limit},
 	)
-	if not isinstance(customer_result, dict) or not customer_result.get("ok"):
-		return {"ok": False, "error": _tool_error(customer_result, "Failed to fetch customer unpaid invoices.")}
-
-	vendor_result = await agent._call_tool(
+	vendor_task = agent._call_tool(
 		"get_unpaid_invoices",
 		{"invoice_type": "vendor", "limit": list_limit},
 	)
+	revenue_task = agent._call_tool("get_revenue", {})
+
+	customer_result, vendor_result, revenue_result = await asyncio.gather(
+		customer_task,
+		vendor_task,
+		revenue_task,
+		return_exceptions=True,
+	)
+
+	if isinstance(customer_result, Exception):
+		logger.exception("Customer unpaid invoices tool call failed", exc_info=customer_result)
+		return {"ok": False, "error": "Failed to fetch customer unpaid invoices."}
+	if not isinstance(customer_result, dict) or not customer_result.get("ok"):
+		return {"ok": False, "error": _tool_error(customer_result, "Failed to fetch customer unpaid invoices.")}
+
+	if isinstance(vendor_result, Exception):
+		logger.exception("Vendor unpaid invoices tool call failed", exc_info=vendor_result)
+		return {"ok": False, "error": "Failed to fetch vendor unpaid invoices."}
 	if not isinstance(vendor_result, dict) or not vendor_result.get("ok"):
 		return {"ok": False, "error": _tool_error(vendor_result, "Failed to fetch vendor unpaid invoices.")}
 
-	revenue_result = await agent._call_tool("get_revenue", {})
+	if isinstance(revenue_result, Exception):
+		logger.exception("Revenue tool call failed", exc_info=revenue_result)
+		return {"ok": False, "error": "Failed to fetch revenue data."}
 	if not isinstance(revenue_result, dict) or not revenue_result.get("ok"):
 		return {"ok": False, "error": _tool_error(revenue_result, "Failed to fetch revenue data.")}
 

@@ -53,6 +53,14 @@ class OdooSessionClient(BaseERPClient):
         "identification_id", "phone",
     ]
 
+    SEARCH_READ_FIELDS_BY_MODEL = {
+        "res.partner": ["id", "name", "email", "phone"],
+        "account.account": ["id", "name", "code", "account_type"],
+        "account.tax": ["id", "name", "amount", "type_tax_use", "active"],
+        "account.payment.term": ["id", "name", "active"],
+        "product.product": ["id", "name"],
+    }
+
     def __init__(
         self,
         base_url: Optional[str] = None,
@@ -240,19 +248,7 @@ class OdooSessionClient(BaseERPClient):
         model: str = "account.move",
     ) -> List[Dict[str, Any]]:
         domain = self._build_domain(filters)
-
-        if model == "res.partner":
-            fields = ["id", "name", "email", "phone"]
-        elif model == "account.account":
-            fields = ["id", "name", "code", "account_type"]
-        elif model == "account.tax":
-            fields = ["id", "name", "amount", "type_tax_use", "active"]
-        elif model == "account.payment.term":
-            fields = ["id", "name", "active"]
-        elif model == "product.product":
-            fields = ["id", "name"]
-        else:
-            fields = self.INVOICE_READ_FIELDS
+        fields = self.SEARCH_READ_FIELDS_BY_MODEL.get(model, self.INVOICE_READ_FIELDS)
 
         records = self._call(
             model, "search_read",
@@ -421,8 +417,32 @@ class OdooSessionClient(BaseERPClient):
             ["invoice_date", ">=", start],
             ["invoice_date", "<", end],
         ]
+
+        # Fast path: let Odoo aggregate on the server to avoid transferring
+        # all invoice rows for the month.
+        grouped = self._call(
+            model,
+            "read_group",
+            domain=domain,
+            fields=["amount_total:sum"],
+            groupby=[],
+            lazy=False,
+        )
+
+        if isinstance(grouped, list):
+            total = 0.0
+            for row in grouped:
+                if not isinstance(row, dict):
+                    continue
+                value = row.get("amount_total_sum", row.get("amount_total"))
+                if isinstance(value, (int, float)):
+                    total += float(value)
+            return total
+
+        # Fallback for instances that do not return expected read_group shape.
         records = self._call(
-            model, "search_read",
+            model,
+            "search_read",
             domain=domain,
             fields=["amount_total"],
             limit=0,
@@ -466,7 +486,7 @@ class OdooSessionClient(BaseERPClient):
             body["ids"] = ids
         body.update(kwargs)
 
-        encoded = json.dumps(body).encode("utf-8")
+        encoded = json.dumps(body, separators=(",", ":")).encode("utf-8")
 
         req = urllib.request.Request(url, data=encoded, method="POST")
         req.add_header("Content-Type", "application/json; charset=utf-8")

@@ -21,7 +21,21 @@ httpClient.interceptors.response.use(
   (res) => res,
   async (error) => {
     const originalRequest = error.config;
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    const requestUrl = String(originalRequest?.url || "");
+    const isAuthEndpoint = requestUrl.includes("/auth/login")
+      || requestUrl.includes("/auth/refresh")
+      || requestUrl.includes("/auth/logout");
+    const hasAuthHeader = Boolean(originalRequest?.headers?.Authorization);
+
+    // Do not attempt refresh on auth endpoints or when the request was not
+    // using an access token. This prevents invalid login attempts from being
+    // treated like an expired session.
+    if (
+      error.response?.status === 401
+      && !originalRequest._retry
+      && !isAuthEndpoint
+      && hasAuthHeader
+    ) {
       originalRequest._retry = true;
       try {
         const { data } = await axios.post(

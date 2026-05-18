@@ -3,7 +3,7 @@ import "./AdminPanel.css";
 import { userApi } from "../services/userApi";
 import UserConversationsModal from "../components/admin/UserConversationsModal";
 
-const ROLES = ["admin", "operator", "viewer"];
+const ROLES = ["admin", "operator"];
 
 const initForm = { full_name: "", email: "", password: "", role: "operator" };
 
@@ -105,8 +105,7 @@ export default function AdminPanel() {
 
   const roleClass = (role) =>
     role === "admin" ? "badge badge-admin" :
-    role === "operator" ? "badge badge-operator" :
-    "badge badge-viewer";
+    "badge badge-operator";
 
   const initials = (name) =>
     name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();

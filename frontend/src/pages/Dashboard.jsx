@@ -12,7 +12,6 @@ import "./Dashboard.css";
 const PERMISSIONS = {
   admin:    { viewDashboard: true,  viewAdmin: true,  createInvoice: true,  viewRevenue: true  },
   operator: { viewDashboard: true,  viewAdmin: false, createInvoice: true,  viewRevenue: true  },
-  viewer:   { viewDashboard: true,  viewAdmin: false, createInvoice: false, viewRevenue: false },
 };
 
 const can = (role, action) => !!(PERMISSIONS[role] || {})[action];
@@ -20,7 +19,7 @@ const can = (role, action) => !!(PERMISSIONS[role] || {})[action];
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
 export default function Dashboard() {
   const user = authService.getUser();
-  const role = (user && user.role) ? user.role : "viewer";
+  const role = (user && user.role) ? user.role : "operator";
   // error is derived from query state
   // const [error, setError] = useState("");
   const [lastRefresh, setLastRefresh] = useState(null);
@@ -82,14 +81,6 @@ export default function Dashboard() {
           </button>
         </div>
       </div>
-
-      {/* ── Permission banner for viewer ── */}
-      {role === "viewer" && (
-        <div className="dash-permission-banner">
-          <span className="dash-perm-icon">👁</span>
-          <span>You are in <strong>Viewer</strong> mode — read-only access. Revenue charts and invoice creation are restricted.</span>
-        </div>
-      )}
 
       {errorMessage && <div className="dash-error">{errorMessage}</div>}
 

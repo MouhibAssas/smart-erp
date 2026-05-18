@@ -13,7 +13,7 @@ from app.models.user import User
 router = APIRouter(prefix="/chat", tags=["chat"])
 logger = logging.getLogger(__name__)
 
-
+# for testing 
 @router.post("", response_model=ChatResponse)
 async def chat(request: Request, body: ChatRequest):
     try:
@@ -56,7 +56,7 @@ async def chat_upload(
         else:
             conversation = conv_service.get_conversation(conversation_id, current_user.id)
 
-        user_content = message.strip() or "Please analyze this invoice document."
+        user_content = message.strip() or "Extract Document Data."
         if filename and filename not in user_content:
             user_content = f"{user_content}\n[File: {filename}]"
 

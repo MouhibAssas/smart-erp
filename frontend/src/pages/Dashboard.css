@@ -96,7 +96,6 @@
 
 .role-btn-admin.role-btn-active   { background: #ecfccb; color: #365314; border-color: #bef264; }
 .role-btn-operator.role-btn-active { background: #dbeafe; color: #1e40af; border-color: #93c5fd; }
-.role-btn-viewer.role-btn-active   { background: #ede9fe; color: #5b21b6; border-color: #c4b5fd; }
 
 .dash-refresh-btn {
   padding: 6px 14px;

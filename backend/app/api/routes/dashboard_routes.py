@@ -6,7 +6,7 @@ from fastapi import APIRouter, Query, Request, Depends
 from app.middleware.dependencies import require_roles
 from app.models.user import User
 
-router = APIRouter(prefix="/dashboard", tags=["dashboard"], dependencies=[Depends(require_roles("viewer", "operator", "admin"))])
+router = APIRouter(prefix="/dashboard", tags=["dashboard"], dependencies=[Depends(require_roles("operator", "admin"))])
 logger = logging.getLogger(__name__)
 
 

@@ -230,7 +230,6 @@
 }
 .avatar-admin   { background: #ecfccb; color: #3f6212; }
 .avatar-operator { background: #dbeafe; color: #1d4ed8; }
-.avatar-viewer  { background: #ede9fe; color: #5b21b6; }
 
 .user-name {
   font-size: 0.85rem;
@@ -257,7 +256,6 @@
 }
 .badge-admin    { background: #ecfccb; color: #365314; border: 1px solid #bef264; }
 .badge-operator { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
-.badge-viewer   { background: #ede9fe; color: #5b21b6; border: 1px solid #c4b5fd; }
 
 /* ── Status toggle ── */
 .status-toggle {

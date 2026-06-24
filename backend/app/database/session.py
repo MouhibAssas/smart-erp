@@ -7,9 +7,7 @@ from app.config import settings
 engine = create_engine(
     
     settings.DATABASE_URL,
-    connect_args={
-        "sslmode": "require",
-    },
+    connect_args={},
     pool_pre_ping=True,      # checks connection health before using it
     pool_size=5,             # max 5 persistent connections
     max_overflow=10          # up to 10 extra connections under load

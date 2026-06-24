@@ -1,5 +1,6 @@
 import logging
 import asyncio
+from datetime import date
 from typing import Any, Dict, List
 
 from fastapi import APIRouter, Query, Request, Depends
@@ -39,7 +40,11 @@ async def get_dashboard_kpis(
 		"get_unpaid_invoices",
 		{"invoice_type": "vendor", "limit": list_limit},
 	)
-	revenue_task = agent._call_tool("get_revenue", {})
+	today = date.today()
+	revenue_task = agent._call_tool(
+		"get_revenue",
+		{"year": today.year, "month": today.month},
+	)
 
 	customer_result, vendor_result, revenue_result = await asyncio.gather(
 		customer_task,

@@ -11,6 +11,15 @@ const httpClient = axios.create({
 });
 // Attach token to every request
 httpClient.interceptors.request.use((config) => {
+  const requestUrl = String(config?.url || "");
+  const isAuthEndpoint = requestUrl.includes("/auth/login")
+    || requestUrl.includes("/auth/refresh")
+    || requestUrl.includes("/auth/logout");
+
+  if (isAuthEndpoint) {
+    return config;
+  }
+
   const token = authService.getToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;

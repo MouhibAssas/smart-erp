@@ -7,11 +7,9 @@
   color: #1f2937;
   padding: 2.5rem 2rem;
   box-sizing: border-box;
-  
+
   width: 100%;
-  min-height: 100vh;
-  box-sizing: border-box;  /* you already have this, good */
-  overflow-y: auto;        /* allow vertical scroll inside layout-main */
+  overflow-y: auto;
 }
 
 /* ── Header ── */
@@ -114,13 +112,164 @@
 }
 
 @media (max-width: 768px) {
+  .admin-root {
+    padding: 1rem;
+  }
+
+  .admin-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.9rem;
+    margin-bottom: 1.25rem;
+    padding-bottom: 1rem;
+  }
+
+  .admin-title {
+    font-size: 1.35rem;
+  }
+
+  .btn-primary,
+  .btn-ghost,
+  .btn-danger {
+    width: 100%;
+    justify-content: center;
+  }
+
   .btn-icon {
-    width: 30px;
-    padding: 0;
+    width: 100%;
+    min-width: 0;
+    padding: 0.5rem 0.65rem;
+    justify-content: center;
   }
 
   .btn-icon-label {
+    display: inline;
+  }
+
+  .table-wrap {
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    overflow: visible;
+  }
+
+  .user-table,
+  .user-table thead,
+  .user-table tbody,
+  .user-table th,
+  .user-table td,
+  .user-table tr {
+    display: block;
+    width: 100%;
+  }
+
+  .user-table thead {
     display: none;
+  }
+
+  .user-table tbody {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+  }
+
+  .user-table tbody tr {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+    padding: 0.9rem;
+  }
+
+  .user-table td {
+    border-bottom: none;
+    padding: 0;
+  }
+
+  .user-table td + td {
+    margin-top: 0.9rem;
+  }
+
+  .user-table td::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 0.35rem;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.68rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #94a3b8;
+  }
+
+  .user-cell {
+    align-items: flex-start;
+  }
+
+  .action-group {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .status-toggle {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .date-cell {
+    word-break: break-word;
+  }
+
+  .modal-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .modal,
+  .modal-sm {
+    width: 100%;
+    max-width: none;
+    max-height: 92vh;
+    border-radius: 18px 18px 0 0;
+  }
+
+  .modal-body {
+    max-height: calc(92vh - 140px);
+    overflow-y: auto;
+  }
+
+  .modal-footer {
+    flex-direction: column-reverse;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-root {
+    padding: 0.75rem;
+  }
+
+  .admin-title {
+    font-size: 1.2rem;
+  }
+
+  .admin-sub {
+    font-size: 0.72rem;
+  }
+
+  .user-table tbody tr {
+    padding: 0.8rem;
+  }
+
+  .badge,
+  .status-toggle {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .user-email,
+  .date-cell,
+  .confirm-text {
+    font-size: 0.72rem;
   }
 }
 

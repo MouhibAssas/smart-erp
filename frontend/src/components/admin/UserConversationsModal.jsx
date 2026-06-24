@@ -61,7 +61,7 @@ export default function UserConversationsModal({ user, isOpen, onClose }) {
     try {
       const res = await userApi.getConversation(user.id, conv.id);
       setMessages(res.data.messages || []);
-    } catch (e) {
+    } catch {
       setError("Failed to load conversation messages");
     } finally {
       setLoadingMessages(false);
@@ -72,7 +72,7 @@ export default function UserConversationsModal({ user, isOpen, onClose }) {
 
   return (
     <div className="ucm-overlay" onClick={onClose}>
-      <div className="ucm-modal" onClick={e => e.stopPropagation()}>
+      <div className="ucm-modal" onClick={(event) => event.stopPropagation()}>
         <div className="ucm-header">
           <h3>Conversations — {user.full_name}</h3>
           <button className="ucm-close" onClick={onClose}>✕</button>
@@ -123,8 +123,9 @@ export default function UserConversationsModal({ user, isOpen, onClose }) {
                       messages.map(m => (
                         <MessageBubble
                           key={m.id}
-                          text={renderHighlightedText(m.content, normalizedQuery)}
+                          text={m.content}
                           sender={m.role === 'ai' ? 'bot' : 'user'}
+                          highlightQuery={normalizedQuery}
                         />
                       ))
                     )

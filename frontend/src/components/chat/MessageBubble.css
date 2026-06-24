@@ -43,8 +43,214 @@
   color: #fff;
 }
 
+.message-bubble-user-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.message-bubble-attachment {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  margin-top: 8px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.message-bubble-attachment svg {
+  flex-shrink: 0;
+}
+
+.message-bubble-attachment-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .message-bubble-content.bot {
   border-radius: 16px 16px 16px 4px;
   background: #f4f4f6;
   color: #1a1a2e;
+  line-height: 1;
+}
+
+.message-bubble-content.bot code {
+  font-family: "Fira Code", Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+.message-bubble-content.bot .message-bubble-inline-code {
+  background: #f1f5f9;
+  color: #7c3aed;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12.5px;
+}
+
+.message-bubble-content.bot pre {
+  overflow-x: auto;
+  border-radius: 8px;
+  background: #1e293b;
+  color: #e2e8f0;
+  padding: 0;
+  margin: 8px 0;
+  line-height: 1.5;
+}
+
+.message-bubble-content.bot pre code {
+  display: block;
+  white-space: pre;
+  color: #e2e8f0;
+  padding: 14px 16px;
+  border-radius: 8px;
+  background: #1e293b;
+  font-size: 12.5px;
+}
+
+.message-bubble-content.bot table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+  background: #fff;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.message-bubble-content.bot th,
+.message-bubble-content.bot td {
+  padding: 10px 16px;
+  vertical-align: top;
+}
+
+.message-bubble-content.bot th {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  color: #a5b4fc;
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.message-bubble-content.bot a {
+  color: #1f4fd6;
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+}
+
+.message-bubble-content.bot hr {
+  border: 0;
+  border-top: 1px solid rgba(26, 26, 46, 0.14);
+  margin: 0.65rem 0;
+}
+
+.message-bubble-content.bot .md-p {
+  margin: 2px 0;
+  line-height: 1.35;
+  color: #374151;
+}
+
+.message-bubble-content.bot .md-h1,
+.message-bubble-content.bot .md-h2,
+.message-bubble-content.bot .md-h3 {
+  color: #1a1a2e;
+  margin: 8px 0 3px;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.message-bubble-content.bot .md-h1 {
+  font-size: 18px;
+}
+
+.message-bubble-content.bot .md-h2 {
+  font-size: 16px;
+}
+
+.message-bubble-content.bot .md-h3 {
+  font-size: 14px;
+}
+
+.message-bubble-content.bot .md-ul,
+.message-bubble-content.bot .md-ol {
+  padding-left: 20px;
+  margin: 2px 0;
+}
+
+.message-bubble-content.bot .md-li {
+  margin: 1px 0;
+  line-height: 1.35;
+  color: #374151;
+}
+
+.message-bubble-content.bot .md-ul .md-li::marker {
+  color: #6366f1;
+}
+
+.message-bubble-content.bot .md-strong {
+  color: #1a1a2e;
+  font-weight: 600;
+}
+
+.message-bubble-content.bot .md-table-wrapper {
+  overflow-x: auto;
+  margin: 8px 0;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.message-bubble-content.bot .md-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+  background: #fff;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.message-bubble-content.bot .md-thead {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+}
+
+.message-bubble-content.bot .md-th {
+  padding: 11px 16px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 12px;
+  color: #a5b4fc;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border: none;
+  white-space: nowrap;
+}
+
+.message-bubble-content.bot .md-tbody .md-tr:nth-child(even) {
+  background: #f8fafc;
+}
+
+.message-bubble-content.bot .md-tbody .md-tr:nth-child(odd) {
+  background: #ffffff;
+}
+
+.message-bubble-content.bot .md-tbody .md-tr:hover {
+  background: #eff6ff;
+  transition: background 0.15s ease;
+}
+
+.message-bubble-content.bot .md-td {
+  padding: 10px 16px;
+  color: #374151;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 13.5px;
+  vertical-align: middle;
+}
+
+.message-bubble-content.bot .md-tbody .md-tr:last-child .md-td {
+  border-bottom: none;
 }

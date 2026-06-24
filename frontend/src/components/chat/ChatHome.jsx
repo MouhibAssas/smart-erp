@@ -5,8 +5,8 @@ import "./ChatHome.css";
 
 const SUGGESTIONS = [
   "Show unpaid invoices",
-  "Create a new invoice",
-  "List my employees",
+  "Show me revenue of May 2026",
+  "List my employees in IT department",
 ];
 
 export default function ChatHome() {
@@ -22,7 +22,7 @@ export default function ChatHome() {
 
     setLoading(true);
     try {
-      const payloadMessage = text || "Please analyze this invoice document.";
+      const payloadMessage = text || "Extract invoice data.";
 
       let result;
       if (selectedFile) {
@@ -37,6 +37,8 @@ export default function ChatHome() {
           sessionStorage.setItem("pendingInvoiceData", JSON.stringify(result.extracted_data));
         }
         navigate(`/chat/${result.public_id}`);
+      } else {
+        setLoading(false);
       }
     } catch (err) {
       console.error("Failed to start conversation:", err);
@@ -114,7 +116,9 @@ export default function ChatHome() {
             disabled={loading}
             onInput={(e) => {
               e.target.style.height = "auto";
-              e.target.style.height = e.target.scrollHeight + "px";
+              e.target.style.overflowY = "hidden";
+              e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
+              e.target.style.overflowY = e.target.scrollHeight > 120 ? "auto" : "hidden";
             }}
           />
 
@@ -159,11 +163,22 @@ export default function ChatHome() {
             key={idx}
             className="chathome-suggestion-chip"
             onClick={() => handleSuggestionClick(suggestion)}
+            disabled={loading}
           >
             {suggestion}
           </button>
         ))}
       </div>
+
+      {loading && (
+        <div className="chathome-loading-overlay" role="status" aria-live="polite" aria-label="Starting conversation">
+          <div className="chathome-loading-card">
+            <div className="chathome-loading-spinner" />
+            <p className="chathome-loading-title">Starting your conversation...</p>
+            <p className="chathome-loading-subtitle">Creating the chat and preparing your request.</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

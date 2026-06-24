@@ -112,7 +112,7 @@ export default function ChatBox() {
     const text = input.trim();
     if ((!text && !selectedFile) || loading) return;
 
-    const payloadMessage = text || "Please analyze this invoice document.";
+    const payloadMessage = text || "Extract invoice data.";
     const userText = selectedFile ? `${payloadMessage}\n[File: ${selectedFile.name}]` : payloadMessage;
 
     const userMsg = { id: Date.now(), text: userText, sender: "user" };
@@ -299,7 +299,9 @@ export default function ChatBox() {
           className="chatbox-textarea"
           onInput={(e) => {
             e.target.style.height = "auto";
-            e.target.style.height = e.target.scrollHeight + "px";
+            e.target.style.overflowY = "hidden";
+            e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
+            e.target.style.overflowY = e.target.scrollHeight > 120 ? "auto" : "hidden";
           }}
         />
         {selectedFile && (
@@ -319,9 +321,17 @@ export default function ChatBox() {
         <button
           onClick={handleSend}
           disabled={loading || (!input.trim() && !selectedFile)}
-          className="chatbox-send-button"
+          className="chathome-send-button"
+          type="button"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+          >
             <line x1="22" y1="2" x2="11" y2="13" />
             <polygon points="22 2 15 22 11 13 2 9 22 2" />
           </svg>

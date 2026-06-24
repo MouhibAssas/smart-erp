@@ -18,6 +18,10 @@ export default function Layout() {
   const [conversations, setConversations] = useState([]);
   const [convsLoading, setConvsLoading] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [deleteCandidate, setDeleteCandidate] = useState(null);
+  const [editingId, setEditingId] = useState(null);
+  const [editingTitle, setEditingTitle] = useState("");
+  const [renamingId, setRenamingId] = useState(null);
 
   const location = useLocation();
   const isOnChat = location.pathname.startsWith("/chat");
@@ -84,17 +88,70 @@ export default function Layout() {
 
   const handleDeleteConv = async (e, conv) => {
     e.stopPropagation();
-    setDeletingId(conv.public_id);
+
+    setDeleteCandidate(conv);
+  };
+
+  const confirmDeleteConv = async () => {
+    if (!deleteCandidate) {
+      return;
+    }
+
+    setDeletingId(deleteCandidate.public_id);
     try {
-      await conversationApi.delete(conv.public_id);
-      setConversations((prev) => prev.filter((c) => c.public_id !== conv.public_id));
-      if (activeConversationPublicId === conv.public_id) {
+      await conversationApi.delete(deleteCandidate.public_id);
+      setConversations((prev) => prev.filter((c) => c.public_id !== deleteCandidate.public_id));
+      if (activeConversationPublicId === deleteCandidate.public_id) {
         navigate("/chat");
       }
     } catch {
       // ignore
     } finally {
       setDeletingId(null);
+      setDeleteCandidate(null);
+    }
+  };
+
+  const startRenameConv = (e, conv) => {
+    e.stopPropagation();
+    setEditingId(conv.public_id);
+    setEditingTitle(conv.title || "");
+  };
+
+  const cancelRenameConv = useCallback(() => {
+    setEditingId(null);
+    setEditingTitle("");
+  }, []);
+
+  const submitRenameConv = async (e, conv) => {
+    e.stopPropagation();
+    const normalized = editingTitle.trim();
+
+    if (!normalized) {
+      cancelRenameConv();
+      return;
+    }
+
+    if (normalized === conv.title) {
+      cancelRenameConv();
+      return;
+    }
+
+    setRenamingId(conv.public_id);
+    try {
+      await conversationApi.rename(conv.public_id, normalized);
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.public_id === conv.public_id
+            ? { ...c, title: normalized }
+            : c
+        )
+      );
+      cancelRenameConv();
+    } catch {
+      // ignore for now
+    } finally {
+      setRenamingId(null);
     }
   };
 
@@ -206,10 +263,14 @@ export default function Layout() {
                 <div
                   key={conv.public_id ?? conv.id}
                   className={`layout-conv-item${activeConversationPublicId === conv.public_id ? " active" : ""}`}
-                  onClick={() => handleSelectConv(conv)}
+                  onClick={() => editingId !== conv.public_id && handleSelectConv(conv)}
                   role="button"
                   tabIndex={0}
-                  onKeyDown={(e) => e.key === "Enter" && handleSelectConv(conv)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && editingId !== conv.public_id) {
+                      handleSelectConv(conv);
+                    }
+                  }}
                 >
                   <div className="layout-conv-icon">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -217,31 +278,101 @@ export default function Layout() {
                     </svg>
                   </div>
                   <div className="layout-conv-content">
-                    <span className="layout-conv-title">{conv.title}</span>
+                    {editingId === conv.public_id ? (
+                      <form className="layout-conv-rename-form" onSubmit={(e) => submitRenameConv(e, conv)} onClick={(e) => e.stopPropagation()}>
+                        <input
+                          className="layout-conv-title-input"
+                          value={editingTitle}
+                          onChange={(e) => setEditingTitle(e.target.value)}
+                          autoFocus
+                          maxLength={120}
+                          onKeyDown={(e) => {
+                            if (e.key === "Escape") {
+                              e.preventDefault();
+                              cancelRenameConv();
+                            }
+                          }}
+                        />
+                      </form>
+                    ) : (
+                      <span className="layout-conv-title">{conv.title}</span>
+                    )}
                     {conv.last_message && (
                       <span className="layout-conv-preview">{conv.last_message}</span>
                     )}
                     <span className="layout-conv-time">{formatDate(conv.updated_at)}</span>
                   </div>
-                  <button
-                    type="button"
-                    className="layout-conv-delete"
-                    onClick={(e) => handleDeleteConv(e, conv)}
-                    disabled={deletingId === conv.public_id}
-                    title="Delete conversation"
-                    aria-label="Delete conversation"
-                  >
-                    {deletingId === conv.public_id ? (
-                      <span className="layout-conv-deleting" />
+                  <div className="layout-conv-actions">
+                    {editingId === conv.public_id ? (
+                      <>
+                        <button
+                          type="button"
+                          className="layout-conv-rename-save"
+                          onClick={(e) => submitRenameConv(e, conv)}
+                          disabled={renamingId === conv.public_id}
+                          title="Save title"
+                          aria-label="Save title"
+                        >
+                          {renamingId === conv.public_id ? (
+                            <span className="layout-conv-deleting" />
+                          ) : (
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          className="layout-conv-rename-cancel"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            cancelRenameConv();
+                          }}
+                          title="Cancel rename"
+                          aria-label="Cancel rename"
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <line x1="18" y1="6" x2="6" y2="18"/>
+                            <line x1="6" y1="6" x2="18" y2="18"/>
+                          </svg>
+                        </button>
+                      </>
                     ) : (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <polyline points="3 6 5 6 21 6"/>
-                        <path d="M19 6l-1 14H6L5 6"/>
-                        <path d="M10 11v6M14 11v6"/>
-                        <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-                      </svg>
+                      <>
+                        <button
+                          type="button"
+                          className="layout-conv-rename"
+                          onClick={(e) => startRenameConv(e, conv)}
+                          title="Rename conversation"
+                          aria-label="Rename conversation"
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M12 20h9"/>
+                            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          className="layout-conv-delete"
+                          onClick={(e) => handleDeleteConv(e, conv)}
+                          disabled={deletingId === conv.public_id}
+                          title="Delete conversation"
+                          aria-label="Delete conversation"
+                        >
+                          {deletingId === conv.public_id ? (
+                            <span className="layout-conv-deleting" />
+                          ) : (
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <polyline points="3 6 5 6 21 6"/>
+                              <path d="M19 6l-1 14H6L5 6"/>
+                              <path d="M10 11v6M14 11v6"/>
+                              <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                            </svg>
+                          )}
+                        </button>
+                      </>
                     )}
-                  </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -277,6 +408,42 @@ export default function Layout() {
       <main className="layout-main">
         <Outlet />
       </main>
+
+      {deleteCandidate && (
+        <div className="layout-modal-backdrop" role="presentation" onClick={() => setDeleteCandidate(null)}>
+          <div
+            className="layout-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="layout-delete-title"
+            aria-describedby="layout-delete-description"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="layout-delete-title" className="layout-modal-title">Delete Conversation</h3>
+            <p id="layout-delete-description" className="layout-modal-description">
+              Are you sure you want to delete this conversation: <strong>{`"${deleteCandidate.title || "this conversation"}"`}</strong>?
+            </p>
+            <div className="layout-modal-actions">
+              <button
+                type="button"
+                className="layout-modal-btn layout-modal-btn-secondary"
+                onClick={() => setDeleteCandidate(null)}
+                disabled={deletingId === deleteCandidate.public_id}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="layout-modal-btn layout-modal-btn-danger"
+                onClick={confirmDeleteConv}
+                disabled={deletingId === deleteCandidate.public_id}
+              >
+                {deletingId === deleteCandidate.public_id ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

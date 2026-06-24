@@ -145,7 +145,7 @@ export default function AdminPanel() {
               ) : users.map(user => (
                 <tr key={user.id} className={!user.is_active ? "row-inactive" : ""}>
                   <td>
-                    <div className="user-cell">
+                    <div className="user-cell" data-label="User">
                       <div className={`avatar avatar-${user.role}`}>{initials(user.full_name)}</div>
                       <div>
                         <p className="user-name">{user.full_name}</p>
@@ -153,7 +153,7 @@ export default function AdminPanel() {
                       </div>
                     </div>
                   </td>
-                  <td><span className={roleClass(user.role)}>{user.role}</span></td>
+                  <td data-label="Role"><span className={roleClass(user.role)}>{user.role}</span></td>
                   <td>
                     <button
                       className={`status-toggle ${user.is_active ? "status-active" : "status-inactive"}`}
@@ -163,12 +163,12 @@ export default function AdminPanel() {
                       {user.is_active ? "Active" : "Inactive"}
                     </button>
                   </td>
-                  <td className="date-cell">
+                  <td className="date-cell" data-label="Created">
                     {new Date(user.created_at).toLocaleDateString("en-GB", {
                       day: "2-digit", month: "short", year: "numeric"
                     })}
                   </td>
-                  <td>
+                  <td data-label="Actions">
                     <div className="action-group">
                       <button type="button" className="btn-icon" onClick={() => openEdit(user)} title="Edit" aria-label={`Edit ${user.full_name}`}>
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>

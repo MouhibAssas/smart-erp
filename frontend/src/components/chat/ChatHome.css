@@ -6,6 +6,7 @@
   overflow: hidden;
   justify-content: center;
   align-items: center;
+  position: relative;
 }
 
 .chathome-content {
@@ -74,6 +75,11 @@
   background: #efefef;
 }
 
+.chathome-suggestion-chip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .chathome-input-area {
   padding: 20px 24px;
   background: transparent;
@@ -133,6 +139,7 @@
   font-size: 14px;
   resize: none;
   max-height: 120px;
+  overflow-y: hidden;
   outline: none;
   transition: all 0.15s;
 }
@@ -216,4 +223,58 @@
 .chathome-send-button:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+.chathome-loading-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(249, 249, 251, 0.82);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+
+.chathome-loading-card {
+  min-width: 260px;
+  max-width: 360px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 18px 20px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.chathome-loading-spinner {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 3px solid #dbeafe;
+  border-top-color: #3b82f6;
+  animation: chathome-spin 0.9s linear infinite;
+  margin-bottom: 10px;
+}
+
+.chathome-loading-title {
+  margin: 0;
+  font-size: 15px;
+  color: #1a1a2e;
+  font-weight: 600;
+}
+
+.chathome-loading-subtitle {
+  margin: 4px 0 0;
+  font-size: 12.5px;
+  color: #64748b;
+}
+
+@keyframes chathome-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }

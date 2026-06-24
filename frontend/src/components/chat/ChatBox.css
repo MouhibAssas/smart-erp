@@ -4,13 +4,52 @@
   height: 100%;
   min-height: 0;
   overflow: hidden;
-  background: #fff;
+  background: #f9f9fb;
+}
+
+@media (min-width: 768px) {
+  .chatbox-container {
+    width: 100%;
+    max-width: 1120px;
+    margin: 0 auto;
+    background: #f9f9fb;
+  }
+
+  .chatbox-messages {
+    padding-left: 32px;
+    padding-right: 32px;
+  }
+
+  .chatbox-input-container,
+  .chatbox-invoice-validation {
+    padding-left: 32px;
+    padding-right: 32px;
+  }
 }
 
 .chatbox-scroll-area {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.22) transparent;
+}
+
+.chatbox-scroll-area::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chatbox-scroll-area::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chatbox-scroll-area::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.18);
+  border-radius: 999px;
+}
+
+.chatbox-scroll-area::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.3);
 }
 
 .chatbox-messages {
@@ -69,17 +108,17 @@
 
 .chatbox-input-container {
   padding: 16px 20px;
-  border-top: 1px solid #eee;
+  border-top: none;
   display: flex;
   gap: 10px;
   align-items: flex-end;
-  background: #fff;
+  background: #f9f9fb;
 }
 
 .chatbox-invoice-validation {
   padding: 12px 20px 8px;
-  border-top: 1px solid #f0f0f0;
-  background: #fcfcfd;
+  border-top: none;
+  background: #f9f9fb;
 }
 
 .chatbox-file-input {
@@ -114,7 +153,7 @@
 .chatbox-textarea {
   flex: 1;
   resize: none;
-  border: 1px solid #e0e0e0;
+  border: 1px solid rgba(226, 232, 240, 0.9);
   border-radius: 12px;
   padding: 10px 14px;
   font-size: 14px;
@@ -122,36 +161,53 @@
   outline: none;
   line-height: 1.5;
   max-height: 120px;
-  overflow-y: auto;
+  overflow-y: hidden;
   color: #1a1a2e;
+  background: #f9f9fb;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
 .chatbox-textarea::placeholder {
   color: #999;
 }
 
-.chatbox-send-button {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
+.chatbox-textarea:focus {
+  border-color: rgba(148, 163, 184, 0.7);
+  background: #f9f9fb;
+}
+
+.chatbox-send-button,
+.chathome-send-button {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-radius: 8px;
   border: none;
-  background: #1a1a2e;
+  background: #3b82f6;
   color: #fff;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: all 0.15s;
+  padding: 0;
   flex-shrink: 0;
-  transition: background 0.2s;
 }
 
-.chatbox-send-button:disabled {
-  background: #e0e0e0;
+.chatbox-send-button:hover:not(:disabled),
+.chathome-send-button:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.chatbox-send-button:active:not(:disabled),
+.chathome-send-button:active:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.chatbox-send-button:disabled,
+.chathome-send-button:disabled {
+  opacity: 0.4;
   cursor: not-allowed;
-}
-
-.chatbox-send-button:hover:not(:disabled) {
-  background: #2a2a3e;
 }
 
 .chatbox-file-pill {

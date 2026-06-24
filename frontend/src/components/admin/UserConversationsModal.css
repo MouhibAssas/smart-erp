@@ -109,6 +109,76 @@
 }
 
 @media (max-width: 900px) {
-  .ucm-list { display: none; }
   .ucm-modal { width: 96%; height: 90vh; }
+  .ucm-body {
+    flex-direction: column;
+  }
+
+  .ucm-list {
+    display: block;
+    width: 100%;
+    flex: 0 0 auto;
+    max-height: 34vh;
+    border-right: 0;
+    border-bottom: 1px solid #f3f4f6;
+    overflow: auto;
+  }
+
+  .ucm-detail {
+    min-height: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .ucm-overlay {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .ucm-modal {
+    width: 100%;
+    height: 92vh;
+    max-width: none;
+    border-radius: 18px 18px 0 0;
+  }
+
+  .ucm-header,
+  .ucm-search,
+  .ucm-error,
+  .ucm-detail {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .ucm-detail-header {
+    align-items: flex-start;
+    gap: 6px;
+    flex-direction: column;
+  }
+
+  .ucm-list {
+    max-height: 30vh;
+    padding: 10px;
+  }
+
+  .ucm-card {
+    padding: 9px;
+    gap: 10px;
+  }
+
+  .ucm-card-title {
+    font-size: 13px;
+  }
+
+  .ucm-card-preview {
+    font-size: 11px;
+  }
+
+  .ucm-detail-title {
+    font-size: 15px;
+  }
+
+  .chatbox-messages.ucm-messages {
+    padding: 14px 10px;
+  }
 }

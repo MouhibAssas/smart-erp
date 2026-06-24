@@ -207,7 +207,7 @@ async def create_employee(
 
         return {
             "ok": True,
-            "message": f"Employee created successfully: {employee.get('name')}",
+            "response": f"Employee created successfully: {employee.get('name')}",
             "employee": employee,
             "summary": {
                 "id": employee.get("id"),

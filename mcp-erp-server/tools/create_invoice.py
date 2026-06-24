@@ -546,7 +546,7 @@ async def create_invoice(
         await ctx.info(f"Invoice created: id={record_id} name={record.get('name')}")
         return {
             "ok": True,
-            "message": f"Invoice created in Odoo — ID {record_id}",
+            "response": f"Invoice created in Odoo — ID {record_id}",
             "invoice": record,
             "invoice_id": record_id,
         }

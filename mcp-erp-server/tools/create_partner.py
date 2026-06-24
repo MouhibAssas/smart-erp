@@ -87,7 +87,7 @@ async def create_partner(
 
         return {
             "ok": True,
-            "message": f"Partner created successfully: {partner.get('name')}",
+            "response": f"Partner created successfully: {partner.get('name')}",
             "partner": partner,
             "summary": {
                 "id": partner.get("id"),

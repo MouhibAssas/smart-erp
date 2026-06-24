@@ -89,29 +89,26 @@ async def get_employee(
                     "ok": False,
                     "error": f"No employee found with name '{name}'.",
                 }
-            employee = employees[0]
         elif has_email:
             email = str(work_email).strip()
             await ctx.info(f"Searching employee by work email: {email}")
-            matches = await asyncio.to_thread(
+            employees = await asyncio.to_thread(
                 client.search_employees,
                 filters={"domain": [["work_email", "ilike", email]]},
-                limit=1,
+                limit=max_results,
             )
-            if not matches:
+            if not employees:
                 return {
                     "ok": False,
                     "error": f"No employee found with work email '{email}'.",
                 }
-            employee = matches[0]
-            employees = [employee]
         elif has_job:
             job = str(job_name).strip()
             await ctx.info(f"Searching job by name: {job}")
             job_matches = await asyncio.to_thread(
                 client.search_jobs,
                 filters={"domain": [["name", "ilike", job]]},
-                limit=1,
+                limit=max_results,
             )
             if not job_matches:
                 return {
@@ -120,25 +117,23 @@ async def get_employee(
                 }
             job_id = job_matches[0]["id"]
             await ctx.info(f"Searching employees with job_id={job_id}")
-            matches = await asyncio.to_thread(
+            employees = await asyncio.to_thread(
                 client.search_employees,
                 filters={"domain": [["job_id", "=", job_id]]},
-                limit=1,
+                limit=max_results,
             )
-            if not matches:
+            if not employees:
                 return {
                     "ok": False,
                     "error": f"No employee found with job '{job}'.",
                 }
-            employee = matches[0]
-            employees = [employee]
         else:  # has_dept
             dept = str(department_name).strip()
             await ctx.info(f"Searching department by name: {dept}")
             dept_matches = await asyncio.to_thread(
                 client.search_departments,
                 filters={"domain": [["name", "ilike", dept]]},
-                limit=1,
+                limit=max_results,
             )
             if not dept_matches:
                 return {
@@ -147,29 +142,38 @@ async def get_employee(
                 }
             dept_id = dept_matches[0]["id"]
             await ctx.info(f"Searching employees with department_id={dept_id}")
-            matches = await asyncio.to_thread(
+            employees = await asyncio.to_thread(
                 client.search_employees,
                 filters={"domain": [["department_id", "=", dept_id]]},
-                limit=1,
+                limit=max_results,
             )
-            if not matches:
+            if not employees:
                 return {
                     "ok": False,
                     "error": f"No employee found in department '{dept}'.",
                 }
-            employee = matches[0]
-            employees = [employee]
 
-        if has_name:
+        if has_name or has_email or has_job or has_dept:
             employee_ids = [e.get("id") for e in employees]
             await ctx.info(f"Found {len(employees)} employee(s) with IDs: {employee_ids}")
-            response_lines = [f"Found {len(employees)} employee(s) matching '{name}':"]
+            if has_name:
+                query_label = f"'{name}'"
+            elif has_email:
+                query_label = f"work email '{email}'"
+            elif has_job:
+                query_label = f"job '{job}'"
+            else:
+                query_label = f"department '{dept}'"
+            response_lines = [f"Found {len(employees)} employee(s) matching {query_label}:"]
             for item in employees:
                 response_lines.append(f"- {_format_employee_line(item)}")
             response_text = "\n".join(response_lines)
         else:
+            employee = employees[0]
             await ctx.info(f"Employee fetched — id {employee.get('id')}")
             response_text = f"Employee found: {_format_employee_line(employee)}"
+
+        employee = employees[0]
 
         return {
             "ok": True,

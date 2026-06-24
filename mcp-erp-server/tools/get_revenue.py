@@ -42,29 +42,40 @@ async def get_revenue(
         )
         today = date.today()
 
-        def build_response(total: float, start_year: int, start_month: int, end_year: int, end_month: int) -> str:
+        def build_response(total: float, start_year: int, start_month: int, end_year: int, end_month: int, count: int) -> str:
             if start_year == end_year and start_month == end_month:
                 return f"Revenue for {_month_label(end_year, end_month)} is {total:,.2f} TND"
 
+            if start_year == end_year and start_month == 1 and end_month == 12:
+                return f"Revenue for {end_year} is {total:,.2f} TND"
+
             return (
-                f"Revenue for the last {n} months ({_short_month_label(start_year, start_month)} to "
+                f"Revenue for the last {count} months ({_short_month_label(start_year, start_month)} to "
                 f"{_short_month_label(end_year, end_month)}) is {total:,.2f} TND"
             )
 
+        async def _fetch_month_revenue(y: int, m: int) -> float:
+            try:
+                return float(await asyncio.to_thread(client.get_monthly_revenue, year=y, month=m))
+            except Exception:
+                return 0.0
+
         if months_back and months_back > 0:
-            # Return a range of months
+            # Anchor the rolling window to the provided year/month when present.
             data: List[Dict[str, Any]] = []
-            # n = min(int(months_back), 12) # no 1 year limit at the moment !
             n = int(months_back)
 
-            start_year = today.year
-            start_month = today.month
-            end_year = today.year
-            end_month = today.month
+            anchor_year = int(year) if year is not None else today.year
+            anchor_month = int(month) if month is not None else today.month
+
+            start_year = anchor_year
+            start_month = anchor_month
+            end_year = anchor_year
+            end_month = anchor_month
             month_pairs: List[tuple[int, int]] = []
             for i in range(n - 1, -1, -1):
-                m = today.month - i
-                y = today.year
+                m = anchor_month - i
+                y = anchor_year
                 while m <= 0:
                     m += 12
                     y -= 1
@@ -78,15 +89,12 @@ async def get_revenue(
 
             semaphore = asyncio.Semaphore(4)
 
-            async def _fetch_month_revenue(y: int, m: int) -> float:
+            async def _fetch_month_revenue_limited(y: int, m: int) -> float:
                 async with semaphore:
-                    try:
-                        return float(await asyncio.to_thread(client.get_monthly_revenue, year=y, month=m))
-                    except Exception:
-                        return 0.0
+                    return await _fetch_month_revenue(y, m)
 
             revenues = await asyncio.gather(
-                *[_fetch_month_revenue(y, m) for y, m in month_pairs]
+                *[_fetch_month_revenue_limited(y, m) for y, m in month_pairs]
             )
 
             for (y, m), revenue in zip(month_pairs, revenues):
@@ -103,7 +111,7 @@ async def get_revenue(
             )
             return {
                 "ok": True,
-                "response": build_response(round(total, 2), start_year, start_month, end_year, end_month),
+                "response": build_response(round(total, 2), start_year, start_month, end_year, end_month, n),
                 "message": f"Revenue for last {n} months",
                 "data": data,
                 "total": round(total, 2),
@@ -115,26 +123,80 @@ async def get_revenue(
                 },
             }
 
-        # Single month
-        y = int(year) if year else today.year
-        m = int(month) if month else today.month
-        revenue = await asyncio.to_thread(client.get_monthly_revenue, year=y, month=m)
-        label = _month_label(y, m)
-        await ctx.info(
-            f"Computed revenue for {label} | total={round(revenue, 2)}"
-        )
+        # Explicit period selection when no rolling window is requested.
+        if year is not None and month is not None:
+            y = int(year)
+            m = int(month)
+            revenue = await asyncio.to_thread(client.get_monthly_revenue, year=y, month=m)
+            label = _month_label(y, m)
+            await ctx.info(
+                f"Computed revenue for {label} | total={round(revenue, 2)}"
+            )
+            return {
+                "ok": True,
+                "response": f"Revenue for {label} is {round(revenue, 2):,.2f} TND",
+                "message": f"Revenue for {label}",
+                "data": [{"month": label, "year": y, "month_num": m, "revenue": round(revenue, 2)}],
+                "total": round(revenue, 2),
+                "meta": {
+                    "start_year": y,
+                    "start_month": m,
+                    "end_year": y,
+                    "end_month": m,
+                },
+            }
+
+        # Year-only request: sum all months in the requested year.
+        if year is not None and month is None:
+            y = int(year)
+            month_pairs = [(y, m) for m in range(1, 13)]
+            data: List[Dict[str, Any]] = []
+            semaphore = asyncio.Semaphore(4)
+
+            async def _fetch_year_month_revenue(y_val: int, m_val: int) -> float:
+                async with semaphore:
+                    return await _fetch_month_revenue(y_val, m_val)
+
+            revenues = await asyncio.gather(
+                *[_fetch_year_month_revenue(y, m) for y, m in month_pairs]
+            )
+
+            for (y_val, m_val), revenue in zip(month_pairs, revenues):
+                label = _short_month_label(y_val, m_val)
+                data.append({
+                    "month": label,
+                    "year": y_val,
+                    "month_num": m_val,
+                    "revenue": round(revenue, 2),
+                })
+
+            total = sum(d["revenue"] for d in data)
+            await ctx.info(
+                f"Computed revenue for year {y} | total={round(total, 2)}"
+            )
+            return {
+                "ok": True,
+                "response": build_response(round(total, 2), y, 1, y, 12, 12),
+                "message": f"Revenue for {y}",
+                "data": data,
+                "total": round(total, 2),
+                "meta": {
+                    "start_year": y,
+                    "start_month": 1,
+                    "end_year": y,
+                    "end_month": 12,
+                },
+            }
+
+        if year is None and month is None:
+            return {
+                "ok": False,
+                "error": "Provide a year, a month with year, or months_back.",
+            }
+
         return {
-            "ok": True,
-            "response": f"Revenue for {label} is {round(revenue, 2):,.2f} TND",
-            "message": f"Revenue for {label}",
-            "data": [{"month": label, "year": y, "month_num": m, "revenue": round(revenue, 2)}],
-            "total": round(revenue, 2),
-            "meta": {
-                "start_year": y,
-                "start_month": m,
-                "end_year": y,
-                "end_month": m,
-            },
+            "ok": False,
+            "error": "Provide both year and month for a single-month revenue query.",
         }
 
     except OdooClientError as exc:

@@ -115,7 +115,7 @@ class ExtractionService:
             {"role": "system", "content": EXTRACTION_PROMPT},
             {"role": "user",   "content": f"OCR text:\n\n{raw_text}"}
         ]
-        raw_response = await self.llm.generate(messages)
+        raw_response = await self.llm.generate(messages, temperature=0.1)
 
         # Step 3 — Parse JSON safely with recovery
         try:

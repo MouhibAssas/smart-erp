@@ -11,8 +11,8 @@ class ChatService:
         message: str,
         history: Optional[list] = None,
         debug: bool = False,
-        enforce_tool_only: bool = True,
-    ) -> Union[str, Tuple[str, Dict[str, Any]]]:
+        enforce_tool_only: bool = False,
+    ) -> Union[str, Tuple[str, Dict[str, Any]]]: 
         if debug:
             return await self.agent.run_with_trace(
                 user_message=message,

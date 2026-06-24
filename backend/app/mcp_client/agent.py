@@ -70,22 +70,119 @@ Counting rules
 Listing rules
 - If the user says "show", "list", "display", or "get", count_only must be False.
 - Listing requests should return invoice records.
+STRICT ARGUMENT RULES:
+- NEVER wrap scalar values inside objects.
+
+Examples:
+CORRECT: "move_type": "out_invoice"
+WRONG: "move_type": {{"type": "out_invoice"}}
+
+CORRECT: "payment_state": "not_paid"
+WRONG: "payment_state": "unpaid"
+
+- Follow parameter names and types EXACTLY as defined by the tool schema.
+- Never invent parameter names.
+- If a parameter is string, return string only.
+- If a parameter is boolean, return boolean only.
+- Never invent nested structures.
+
+Invoice mapping rules:
+- customer invoices -> move_type="out_invoice"
+- vendor bills -> move_type="in_invoice"
+
+Payment state mapping:
+- unpaid -> "not_paid"
+- partially paid -> "partial"
+- paid -> "paid"
+- overdue -> "overdue"
+"""
+DECISION_PROMPT += """
+
+No-tool rules (return "tool": "none" for these):
+- The user asks to summarize, analyze, or explain previous results.
+- The user asks for predictions or trends based on data already in the conversation.
+- The user says "don't use a tool", "just answer", or similar.
+- The user asks a follow-up question about data that was already fetched.
+- The user asks general ERP knowledge questions that do not require live data.
+- The user is chatting, greeting, or asking who you are.
+"""
+# Few-shot examples to reduce Pydantic/schema errors. Keep double-brace escaping
+# because this string is later formatted with DECISION_PROMPT.format(tools=...).
+DECISION_PROMPT += """
+
+Few-shot examples (must be valid JSON, follow parameter names exactly):
+
+Example 1 — Count unpaid customer invoices in a date range:
+{{
+    "tool": "search_invoices_advanced",
+    "args": {{
+        "move_type": "out_invoice",
+        "payment_state": "not_paid",
+        "date_from": "2026-01-01",
+        "date_to": "2026-05-31",
+        "count_only": true
+    }},
+    "reason": "Count unpaid customer invoices from Jan to May 2026"
+}}
+
+Example 2 — List 20 unpaid invoices for a partner:
+{{
+    "tool": "search_invoices_advanced",
+    "args": {{
+        "move_type": "out_invoice",
+        "payment_state": "not_paid",
+        "partner_name": "ACME SARL",
+        "limit": 20,
+        "count_only": false
+    }},
+    "reason": "List 20 unpaid customer invoices for partner ACME"
+}}
+
+Example 3 — Create invoice: `invoice_payload` must be a JSON string (not an object):
+{{
+    "tool": "create_invoice",
+    "args": {{
+        "invoice_payload": "{{\"move_type\":\"out_invoice\",\"partner_id\":42,\"lines\":[{{\"description\":\"Consulting\",\"quantity\":1,\"unit_price\":500}}]}}"
+    }},
+    "reason": "Create invoice from canonical payload"
+}}
+
+Example 4 — Revenue from May 2025 until January 2025:
+{{
+    "tool": "get_revenue",
+    "args": {{
+        "year": 2025,
+        "month": 5,
+        "months_back": 5
+    }},
+    "reason": "Get the revenue range from January 2025 through May 2025, anchored at May 2025"
+}}
+
+Important rules reinforced:
+- Follow tool parameter names exactly (move_type, payment_state, date_from, date_to, count_only).
+- NEVER wrap scalar values inside objects (WRONG: "move_type": {{"type":"out_invoice"}}).
+- Use the mapping: customer -> move_type="out_invoice", vendor -> move_type="in_invoice".
+- Use payment_state values: unpaid -> "not_paid", partially paid -> "partial", paid -> "paid", overdue -> "overdue".
+- For revenue range requests like "from May 2025 until January 2025", normalize to the end month as the anchor and set months_back to cover the span.
 """
 
-RESPONSE_PROMPT = """You are a professional ERP assistant. 
-Given the user's message and the tool result below, write a clear, 
-helpful response based ONLY on the tool result. Be concise.
+RESPONSE_PROMPT = """You are a professional ERP assistant.
+
+Given the user's message, the conversation history, and the tool result below (if any),
+write a clear, helpful response.
 
 Rules:
-- Do not use outside knowledge.
-- If tool result indicates failure, explain the failure and what input is needed.
+- If a tool result is provided, base your answer primarily on that result.
+- If no tool result is provided, use the conversation history to answer.
+  Look at previous assistant messages for data, numbers, or results.
 - Do not claim success unless tool_result.ok is true.
-- Do not expose internal IDs or raw JSON unless the user specifically asked for them.
-- If multiple records are returned, present them as a readable list.
+- Do not expose internal IDs or raw JSON unless the user specifically asked.
+- For summaries or predictions, reason explicitly from the numbers in the history.
+
 Formatting rules:
-- If the tool returns multiple records, list them clearly.
-- Do NOT summarize results when records are available.
-- For invoices, show important fields such as invoice number, partner, amount, and due date.
+- If the user asks for a table, return a clean markdown table.
+- If multiple records are returned, present them as a readable list.
+- Keep the output concise and aligned with the user's requested structure.
 """
 
 
@@ -139,7 +236,7 @@ class Agent:
         self,
         user_message: str,
         history: Optional[List[Dict[str, str]]] = None,
-        enforce_tool_only: bool = True,
+        enforce_tool_only: bool = False,
     ) -> str:
         response, _ = await self.run_with_trace(
             user_message=user_message,
@@ -152,7 +249,7 @@ class Agent:
         self,
         user_message: str,
         history: Optional[List[Dict[str, str]]] = None,
-        enforce_tool_only: bool = True,
+        enforce_tool_only: bool = False,
     ) -> tuple[str, Dict[str, Any]]:
         history = history or []
         trace: Dict[str, Any] = {
@@ -179,7 +276,6 @@ class Agent:
                 response = await self._respond(user_message, history, tool_result=None)
             trace["progress"].append("done")
             return response, trace
-
         # Shortcut: if user asks for available tools, answer from MCP list directly.
         if self._is_tool_inventory_request(user_message):
             trace["progress"].append("inventory_request_detected")
@@ -194,6 +290,14 @@ class Agent:
                 response = "Available MCP tools: " + ", ".join(names)
             else:
                 response = "I could not fetch tools from MCP right now."
+            trace["progress"].append("done")
+            return response, trace
+          # Shortcut: analysis/summarization of prior conversation data — skip tool decision
+        if self._is_analysis_request(user_message):
+            trace["progress"].append("analysis_request_detected")
+            trace["selected_tool"] = "none"
+            trace["reason"] = "User asked for analysis/summary — using conversation history"
+            response = await self._respond(user_message, history, tool_result=None)
             trace["progress"].append("done")
             return response, trace
 
@@ -270,6 +374,23 @@ class Agent:
         )
         return any(p in text for p in patterns)
 
+    def _is_analysis_request(self, user_message: str) -> bool:
+        """Detect requests that want analysis/summary/prediction on prior data — no tool needed."""
+        text = (user_message or "").strip().lower()
+        patterns = (
+            "summarize", "summary", "summarise",
+            "predict", "prediction", "forecast",
+            "based on the data", "based on these results", "based on what you found",
+            "from the results", "from the data above", "from the above",
+            "analyze that", "analyse that", "analyze the results", "analyse the results",
+            "what does this mean", "what does that mean",
+            "give me insights", "any insights",
+            "don't use a tool", "without a tool", "no tool",
+            "just answer", "answer directly",
+            "explain the results", "explain these numbers",
+            "what trends", "any trends","table"
+        )
+        return any(p in text for p in patterns)
     # ── MCP reconnect and caching ────────────────────────────────────────────
 
     async def _mcp_call(self, operation: Callable) -> Any:
@@ -423,7 +544,7 @@ class Agent:
             *history,
             {"role": "user", "content": user_message},
         ]
-        raw = await self.llm.generate(messages)
+        raw = await self.llm.generate(messages, temperature=0.1)
         return self._parse_decision(raw)
 
     async def _respond(
@@ -433,54 +554,10 @@ class Agent:
         tool_result: Optional[Any],
     ) -> str:
         """Asks the LLM to format the final user-facing response."""
-        # Deterministic formatting for read-style results to avoid generic responses.
         if isinstance(tool_result, dict) and tool_result.get("ok") is True:
             direct_response = tool_result.get("response")
             if isinstance(direct_response, str) and direct_response.strip():
                 return direct_response.strip()
-
-            summary = tool_result.get("summary")
-            if isinstance(summary, dict) and summary:
-                message = str(tool_result.get("message") or "").lower()
-
-                if "invoice" in message or any(
-                    key in summary for key in ("state", "amount_total", "partner")
-                ):
-                    header = str(tool_result.get("message") or "Invoice details")
-                    lines = [header, ""]
-                    if summary.get("id") is not None:
-                        lines.append(f"ID: {summary.get('id')}")
-                    if summary.get("name"):
-                        lines.append(f"Number: {summary.get('name')}")
-                    if summary.get("state"):
-                        lines.append(f"State: {summary.get('state')}")
-                    if summary.get("partner"):
-                        lines.append(f"Partner: {summary.get('partner')}")
-                    if summary.get("amount_total") is not None:
-                        lines.append(f"Total: {summary.get('amount_total')}")
-                    return "\n".join(lines)
-
-                if "partner" in message or any(
-                    key in summary for key in ("customer_rank", "supplier_rank", "is_company")
-                ):
-                    is_creation = "create" in message or "created" in message or "new contact" in message
-                    header = "Partner created successfully" if is_creation else "Partner data fetched successfully"
-                    lines = [header, ""]
-                    if summary.get("id") is not None:
-                        lines.append(f"ID: {summary.get('id')}")
-                    if summary.get("name"):
-                        lines.append(f"Name: {summary.get('name')}")
-                    if summary.get("email"):
-                        lines.append(f"Email: {summary.get('email')}")
-                    if summary.get("phone"):
-                        lines.append(f"Phone: {summary.get('phone')}")
-                    if summary.get("is_company") is not None:
-                        lines.append(f"Is Company: {summary.get('is_company')}")
-                    if summary.get("customer_rank") is not None:
-                        lines.append(f"Customer Rank: {summary.get('customer_rank')}")
-                    if summary.get("supplier_rank") is not None:
-                        lines.append(f"Supplier Rank: {summary.get('supplier_rank')}")
-                    return "\n".join(lines)
 
         fallback = self._format_tool_result_fallback(tool_result)
         if tool_result is not None:
@@ -491,7 +568,7 @@ class Agent:
             )
             assistant_context = f"Tool result:\n{result_text}"
         else:
-            assistant_context = "No tool was needed for this request."
+            assistant_context = "No tool was called for this request. Use the conversation history above to answer the user directly.If previous messages contain data, numbers, or results, use that information to summarize, analyze, or predict as requested. "
 
         messages = [
             {"role": "system", "content": RESPONSE_PROMPT},
@@ -500,7 +577,7 @@ class Agent:
             {"role": "assistant", "content": assistant_context},
         ]
         try:
-            text = await self.llm.generate(messages)
+            text = await self.llm.generate(messages, temperature=0.8)
             if text and text.strip():
                 return text
             return fallback
@@ -548,7 +625,13 @@ class Agent:
                     line for line in lines
                     if not line.strip().startswith("```")
                 )
-            parsed = json.loads(clean.strip())
+            clean = clean.strip()
+            decoder = json.JSONDecoder()
+            start = clean.find("{")
+            if start == -1:
+                return fallback
+
+            parsed, _ = decoder.raw_decode(clean[start:])
             if not isinstance(parsed, dict):
                 return fallback
             
@@ -566,5 +649,5 @@ class Agent:
             
             return parsed
         except json.JSONDecodeError as exc:
-            logger.warning("LLM returned invalid JSON for tool decision: %s | raw: %.200s", exc, raw)
+            logger.debug("LLM returned non-parseable tool decision, falling back: %s", exc)
             return fallback

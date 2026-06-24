@@ -13,9 +13,6 @@ from app.mcp_client.agent import Agent
 from app.api.routes import user_routes
 
 
-import app.models.user
-import app.models.invoice
-import app.models.conversation  
 
 logger = logging.getLogger(__name__)
 

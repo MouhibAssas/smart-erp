@@ -9,7 +9,11 @@ class GroqProvider(BaseLLMProvider):
         self.client = AsyncGroq(api_key=api_key)
         self.model = model
 
-    async def generate(self, messages: Union[List[Dict[str, str]], str]) -> str:
+    async def generate(
+        self,
+        messages: Union[List[Dict[str, str]], str],
+        temperature: float = 0.7,
+    ) -> str:
         if isinstance(messages, str):
             formatted_messages = [{"role": "user", "content": messages}]
         else:
@@ -17,7 +21,8 @@ class GroqProvider(BaseLLMProvider):
 
         response = await self.client.chat.completions.create(
             model=self.model,
-            messages=formatted_messages
+            messages=formatted_messages,
+            temperature=temperature,
         )
 
         return response.choices[0].message.content
